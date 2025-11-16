@@ -8,8 +8,6 @@ pub fn initialize_contract(ctx: Context<InitializeContract>, title: String, topi
 
     let contract_account = &mut ctx.accounts.contract_account;
 
-    require!(!contract_account.to_account_info().data_is_empty(), SolanceError::ContractAlreadyInitialized);
-
     contract_account.client = ctx.accounts.client_account.key();
     contract_account.contractor = None;
     contract_account.contract_id = ctx.accounts.client_account.next_contract_id;

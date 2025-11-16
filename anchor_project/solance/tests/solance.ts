@@ -407,16 +407,217 @@ describe("solance program", () => {
               }
               return false;
           });                           
+        });
+    });
+      
+      describe("Update proposal", async () => {
+
+        it("It should update an existing proposal", async () => {
+          // On part du principe que first_proposal_pda a déjà été créée
+          // par le test "It Should successfully initialize a Proposal account with 0 as proposal id"
+
+          const newAmount = new anchor.BN(2_000_000_000); // nouveau montant
+
+          await program.methods
+            .updateProposalIx(newAmount)
+            .accounts({
+              contractor: contractor.publicKey,
+              contract: first_contract_pda,         // 👈 ajouté
+              contractorAccount: contractor_pda,
+              proposalAccount: first_proposal_pda,
+            })
+            .signers([contractor])
+            .rpc({ commitment: "confirmed" });
+
+          // On vérifie on-chain que l'amount a bien été mis à jour
+          const proposalAccount = await program.account.proposal.fetch(first_proposal_pda);
+
+          expect(proposalAccount.amount.toNumber()).to.equal(newAmount.toNumber());
+          expect(proposalAccount.contract.toBase58()).to.equal(first_contract_pda.toBase58());
+          expect(proposalAccount.contractor.toBase58()).to.equal(contractor_pda.toBase58());
+          expect(proposalAccount.proposalId.toNumber()).to.equal(0);
+        });
+
+        it("It should fail to update an existing proposal already accepted by the client", async () => {
+          const newAmount = new anchor.BN(3_000_000_000);
+
+            program.methods
+              .updateProposalIx(newAmount)
+              .accounts({
+                contractor: contractor.publicKey,
+                contract: first_contract_pda,       
+                contractorAccount: contractor_pda,
+                proposalAccount: first_proposal_pda,
+              })
+              .signers([contractor])
+              .rpc({ commitment: "confirmed" });
+        });
+
+        it("It should fail to update an existing proposal that is not created by the signer", async () => {
+          const newAmount = new anchor.BN(4_000_000_000);
+
+          await airdrop(provider.connection, contractor_attacker.publicKey);
+
+          await assert.rejects(
+            program.methods
+              .updateProposalIx(newAmount)
+              .accounts({
+                contractor: contractor_attacker.publicKey,  
+                contract: first_contract_pda,              
+                contractorAccount: contractor_pda,          
+                proposalAccount: first_proposal_pda,        
+              })
+              .signers([contractor_attacker])
+              .rpc({ commitment: "confirmed" }),
+          );
+        });
 
       });
 
-    
+        describe("choose proposal", async () => {
+
+      it("It should let the client choose a proposal and update the contract", async () => {
+        await program.methods
+          .chooseProposalIx()
+          .accounts({
+            signer: client.publicKey,
+            clientAccount: client_pda,
+            contract: first_contract_pda,
+            proposalAccount: first_proposal_pda,
+            contractorAccount: contractor_pda,
+          })
+          .signers([client])
+          .rpc({ commitment: "confirmed" });
+
+        const contractAccount = await program.account.contract.fetch(first_contract_pda);
+        const proposalAccount = await program.account.proposal.fetch(first_proposal_pda);
+
+        expect(contractAccount.contractor).to.not.equal(null);
+        const chosenContractor = (contractAccount.contractor as anchor.web3.PublicKey).toBase58();
+        expect(chosenContractor).to.equal(contractor_pda.toBase58());
+
+        expect(contractAccount.amount).to.not.equal(null);
+        const chosenAmount = (contractAccount.amount as anchor.BN).toNumber();
+        const proposalAmount = proposalAccount.amount.toNumber();
+
+        expect(chosenAmount).to.equal(proposalAmount);
+      });
+
+
+      it("It should fail if a different client tries to choose a proposal", async () => {
+        await airdrop(provider.connection, client_attacker.publicKey);
+
+        await assert.rejects(
+          program.methods
+            .chooseProposalIx()
+            .accounts({
+              signer: client_attacker.publicKey,  
+              clientAccount: client_pda,         
+              contract: first_contract_pda,
+              proposalAccount: first_proposal_pda,
+              contractorAccount: contractor_pda,
+            })
+            .signers([client_attacker])
+            .rpc({ commitment: "confirmed" })
+        );
+        // Si tu veux affiner :
+        // , (err: any) => {
+        //   if (!err.logs) return false;
+        //   const anchorErr = anchor.AnchorError.parse(err.logs);
+        //   return anchorErr.error.errorCode.code === "UnauthorizedAccount";
+        // }
+      });
+
+      it("It should fail if proposal does not belong to the given contract", async () => {
+
+        const clientAccount = await program.account.client.fetch(client_pda);
+        const nextContractId = clientAccount.nextContractId as anchor.BN;
+
+        const [other_contract_pda] = anchor.web3.PublicKey.findProgramAddressSync(
+          [
+            Buffer.from(CONTRACT_SEED),
+            client_pda.toBuffer(),
+            nextContractId.toArrayLike(Buffer, "le", 8),
+          ],
+          program.programId
+        );
+
+        await program.methods
+          .initializeContractIx(good_title_length, good_topic_length)
+          .accounts({
+            signer: client.publicKey,
+            clientAccount: client_pda,
+            contractAccount: other_contract_pda,
+            systemProgram: anchor.web3.SystemProgram.programId,
+          })
+          .signers([client])
+          .rpc({ commitment: "confirmed" });
+
+        await assert.rejects(
+          program.methods
+            .chooseProposalIx()
+            .accounts({
+              signer: client.publicKey,
+              clientAccount: client_pda,
+              contract: other_contract_pda,       
+              proposalAccount: first_proposal_pda,
+              contractorAccount: contractor_pda,
+            })
+            .signers([client])
+            .rpc({ commitment: "confirmed" })
+        );
+        // Si tu veux tester l'erreur InvalidProposalForContract :
+        // , (err: any) => {
+        //   if (!err.logs) return false;
+        //   const anchorErr = anchor.AnchorError.parse(err.logs);
+        //   return anchorErr.error.errorCode.code === "InvalidProposalForContract";
+        // }
+      });
+
+      it("It should fail if contractorAccount does not match proposal contractor", async () => {
+        
+        await airdrop(provider.connection, contractor_attacker.publicKey);
+
+        // On initialise son ContractorAccount
+        await program.methods
+          .initializeContractorIx()
+          .accounts({
+            contractor: contractor_attacker.publicKey,
+            contractorAccount: contractor_attacker_pda,
+            systemProgram: anchor.web3.SystemProgram.programId,
+          })
+          .signers([contractor_attacker])
+          .rpc({ commitment: "confirmed" });
+
+        await assert.rejects(
+          program.methods
+            .chooseProposalIx()
+            .accounts({
+              signer: client.publicKey,
+              clientAccount: client_pda,
+              contract: first_contract_pda,
+              proposalAccount: first_proposal_pda,
+              contractorAccount: contractor_attacker_pda, // 👈 mismatch volontaire
+            })
+            .signers([client])
+            .rpc({ commitment: "confirmed" })
+        );
+        // Et là tu peux affiner :
+        // , (err: any) => {
+        //   if (!err.logs) return false;
+        //   const anchorErr = anchor.AnchorError.parse(err.logs);
+        //   return anchorErr.error.errorCode.code === "InvalidContractorForProposal";
+        // }
+      });
+
     });
+
+    
+
 
 
 
 });
-
 
 async function airdrop(connection: any, address: any, amount = 1000000000) {
   await connection.confirmTransaction(await connection.requestAirdrop(address, amount), "confirmed");

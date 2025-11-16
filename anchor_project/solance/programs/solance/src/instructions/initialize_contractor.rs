@@ -2,15 +2,12 @@ use anchor_lang::prelude::*;
 use crate::ContractorInitialized;
 use crate::states::Contractor;
 use crate::constants::CONTRACTOR_SEED;
-use crate::SolanceError;
 
 pub fn initialize_contractor(ctx: Context<InitializeContractor>) -> Result<()> {
 
     let clock = Clock::get()?;
 
     let contractor: &mut Account<'_, Contractor> = &mut ctx.accounts.contractor_account;
-
-    require!(!contractor.to_account_info().data_is_empty(), SolanceError::ContractorAlreadyInitialized);
 
     contractor.owner = ctx.accounts.contractor.key();
     contractor.next_proposal_id = 0;

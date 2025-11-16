@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use crate::constants::{TITLE_MAX_LENGTH, TOPIC_MAX_LENGTH};
 
-#[derive(AnchorDeserialize, AnchorSerialize, Clone, InitSpace)]
+#[derive(AnchorDeserialize, AnchorSerialize, Clone, InitSpace, PartialEq)]
 pub enum Status {
     Opened,
     Accepted, 

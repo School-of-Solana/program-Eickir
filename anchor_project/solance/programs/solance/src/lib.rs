@@ -31,4 +31,12 @@ pub mod solance {
         initialize_proposal(ctx,  amount)
     }
 
+    pub fn update_proposal_ix(ctx: Context<UpdateProposal>, amount: u64) -> Result<()> {
+        update_proposal(ctx, amount)
+    }
+
+    pub fn choose_proposal_ix(ctx: Context<ChooseProposal>) -> Result<()> {
+        choose_proposal(ctx)
+    }
+
 }
