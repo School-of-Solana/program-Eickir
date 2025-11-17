@@ -4,7 +4,7 @@ use crate::states::{Client, Contractor, Contract, Status};
 use crate::constants::VAULT_SEED;
 use crate::errors::SolanceError;
 
-pub fn claim_payment(ctx: Context<ClaimPayment>) -> Result<()> {
+ pub fn claim_payment(ctx: Context<ClaimPayment>) -> Result<()> {
     let contract = &mut ctx.accounts.contract;
 
     require!(
@@ -16,38 +16,17 @@ pub fn claim_payment(ctx: Context<ClaimPayment>) -> Result<()> {
         .amount
         .ok_or(SolanceError::MissingAmount)?;
 
-    let vault = &ctx.accounts.vault;
-    let contractor = &ctx.accounts.contractor;
+    let vault_info = ctx.accounts.vault.to_account_info();
+    let contractor_info = ctx.accounts.contractor.to_account_info();
 
-    // 3. Préparation du CPI transfer vault -> contractor
-    let cpi_accounts = system_program::Transfer {
-        from: vault.to_account_info(),
-        to: contractor.to_account_info(),
-    };
+    **vault_info.try_borrow_mut_lamports()? -= amount;
+    **contractor_info.try_borrow_mut_lamports()? += amount;
 
-
-    let vault_bump = ctx.bumps.vault;
-    let binding = contract.key();
-    let seeds: &[&[u8]] = &[
-        VAULT_SEED,
-        binding.as_ref(),
-        &[vault_bump],
-    ];
-
-    let binding = [seeds];
-    let cpi_ctx = CpiContext::new_with_signer(
-        ctx.accounts.system_program.to_account_info(),
-        cpi_accounts,
-        &binding,
-    );
-
-    system_program::transfer(cpi_ctx, amount)?;
-
-    // 5. Empêcher double paiement
     contract.amount = None;
 
     Ok(())
 }
+
 
 #[derive(Accounts)]
 pub struct ClaimPayment<'info> {
