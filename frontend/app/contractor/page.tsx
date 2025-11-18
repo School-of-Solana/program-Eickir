@@ -44,7 +44,7 @@ export default function ContractorPage() {
                 Track the proposals you submitted and their status.
               </p>
               <a
-                href="/proposals"
+                href="contractor/proposals"
                 className="inline-flex text-xs px-3 py-1 rounded bg-emerald-500 hover:bg-emerald-600"
               >
                 Go to proposals

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { PublicKey } from "@solana/web3.js";
 import { useSolanceProgram } from "@/lib/solana/program";
+import { useChooseProposal } from "@/hooks/useChooseProposal";
 
 function tryParsePubkey(s: string | undefined): PublicKey | null {
   if (!s) return null;
@@ -34,9 +35,6 @@ function formatStatus(status: any): string {
 
 export default function ClientContractDetailPage() {
   const params = useParams();
-  // Next te donne ici un simple record { contractPk: "..." }
-  console.log("useParams() =>", params);
-
   const contractPkStr =
     typeof params?.contractPk === "string" ? params.contractPk : undefined;
 
@@ -46,11 +44,21 @@ export default function ClientContractDetailPage() {
   );
 
   const program = useSolanceProgram();
+
   const [contract, setContract] = useState<any | null>(null);
   const [proposals, setProposals] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [reloadCounter, setReloadCounter] = useState(0);
 
+  const {
+    chooseProposal,
+    loading: choosing,
+    error: chooseError,
+    lastVaultPda,
+  } = useChooseProposal();
+
+  // Chargement contrat + proposals
   useEffect(() => {
     if (!program || !contractPk) return;
 
@@ -79,9 +87,8 @@ export default function ClientContractDetailPage() {
         setLoading(false);
       }
     })();
-  }, [program, contractPk]);
+  }, [program, contractPk, reloadCounter]);
 
-  // Si l’adresse n’est pas valide
   if (!contractPk) {
     return (
       <div className="space-y-3">
@@ -110,6 +117,29 @@ export default function ClientContractDetailPage() {
     );
   }
 
+  const statusLabel = formatStatus(contract?.status);
+  const canChoose =
+    statusLabel === "Opened" && !loading && !choosing && proposals.length > 0;
+
+  const handleChoose = async (p: any) => {
+    if (!program || !contractPk) return;
+    try {
+      // `p.account.contractor` est DÉJÀ le PDA du ContractorAccount,
+      // c'est ce qu'on a stocké on-chain dans initialize_proposal.
+      const contractorAccountPk = new PublicKey(
+        p.account.contractor.toBase58
+          ? p.account.contractor.toBase58()
+          : String(p.account.contractor)
+      );
+
+      await chooseProposal(contractPk, p.publicKey, contractorAccountPk);
+
+      setReloadCounter((n) => n + 1);
+    } catch (e) {
+      console.error("handleChoose error:", e);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
@@ -127,8 +157,20 @@ export default function ClientContractDetailPage() {
         <span className="font-mono">{contractPk.toBase58()}</span>
       </p>
 
-      {loading && <p className="text-sm text-slate-400">Loading…</p>}
+      {(loading || choosing) && (
+        <p className="text-sm text-slate-400">
+          {loading ? "Loading…" : "Submitting transaction…"}
+        </p>
+      )}
       {error && <p className="text-sm text-red-400">{error}</p>}
+      {chooseError && <p className="text-sm text-red-400">{chooseError}</p>}
+
+      {lastVaultPda && (
+        <p className="text-xs text-emerald-400 break-all">
+          Funds locked in vault:{" "}
+          <span className="font-mono">{lastVaultPda.toBase58()}</span>
+        </p>
+      )}
 
       {contract && (
         <section className="rounded-lg border border-slate-800 bg-slate-950/70 p-4 space-y-3">
@@ -142,7 +184,7 @@ export default function ClientContractDetailPage() {
               </p>
             </div>
             <span className="text-xs px-2 py-1 rounded-full bg-slate-800">
-              {formatStatus(contract.status)}
+              {statusLabel}
             </span>
           </div>
 
@@ -191,39 +233,65 @@ export default function ClientContractDetailPage() {
 
         {proposals.length > 0 && (
           <div className="space-y-3">
-            {proposals.map((p: any) => (
-              <div
-                key={p.publicKey.toBase58()}
-                className="rounded-lg border border-slate-800 bg-slate-950/60 p-3 text-xs space-y-2"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <p className="font-semibold">
-                    Proposal #
-                    {Number(
-                      p.account.proposalId ?? p.account.proposal_id ?? 0
+            {proposals.map((p: any) => {
+              const proposalId = Number(
+                p.account.proposalId ?? p.account.proposal_id ?? 0
+              );
+              const contractorPk =
+                p.account.contractor?.toBase58?.() ??
+                String(p.account.contractor);
+
+              const isSelected =
+                contract?.contractor &&
+                contract.contractor.toBase58?.() === contractorPk;
+
+              return (
+                <div
+                  key={p.publicKey.toBase58()}
+                  className="rounded-lg border border-slate-800 bg-slate-950/60 p-3 text-xs space-y-2"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-semibold">
+                      Proposal #{proposalId}
+                    </p>
+                    <p className="text-emerald-400">
+                      {lamportsToSol(p.account.amount)} SOL
+                    </p>
+                  </div>
+
+                  <p className="text-slate-400">
+                    Contractor:{" "}
+                    <span className="font-mono break-all">
+                      {contractorPk}
+                    </span>
+                  </p>
+
+                  <p className="text-slate-500 break-all">
+                    Proposal PDA:{" "}
+                    <span className="font-mono">
+                      {p.publicKey.toBase58()}
+                    </span>
+                  </p>
+
+                  <div className="pt-2 flex items-center justify-between gap-2">
+                    {isSelected ? (
+                      <span className="text-[10px] px-2 py-1 rounded-full bg-emerald-900/40 text-emerald-300">
+                        Selected for this contract
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleChoose(p)}
+                        disabled={!canChoose}
+                        className="text-[11px] px-3 py-1 rounded bg-indigo-500 hover:bg-indigo-600 disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        {choosing ? "Choosing…" : "Choose this proposal"}
+                      </button>
                     )}
-                  </p>
-                  <p className="text-emerald-400">
-                    {lamportsToSol(p.account.amount)} SOL
-                  </p>
+                  </div>
                 </div>
-
-                <p className="text-slate-400">
-                  Contractor:{" "}
-                  <span className="font-mono break-all">
-                    {p.account.contractor?.toBase58?.() ??
-                      String(p.account.contractor)}
-                  </span>
-                </p>
-
-                <p className="text-slate-500 break-all">
-                  Proposal PDA:{" "}
-                  <span className="font-mono">
-                    {p.publicKey.toBase58()}
-                  </span>
-                </p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </section>
