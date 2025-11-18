@@ -11,22 +11,46 @@ export function useLoadContract(contractPk: PublicKey | null) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!program || !contractPk) return;
+    if (!program || !contractPk) {
+      return;
+    }
+
+    const pkStr = contractPk.toBase58();
+    const progId = program.programId.toBase58();
+
+    let cancelled = false;
 
     (async () => {
       setLoading(true);
       setError(null);
+
       try {
         const contract = await (program.account as any).contract.fetch(contractPk);
-        setData(contract);
+        if (!cancelled) {
+          setData(contract);
+        }
       } catch (e: any) {
         console.error("load contract error:", e);
-        setError(e.message ?? "Failed to load contract");
+        if (!cancelled) {
+          setError(e.message ?? "Failed to load contract");
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     })();
-  }, [program, contractPk]);
+
+    // cleanup au cas où le composant se démonte pendant le fetch
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    // on ne met pas directement `program` et `contractPk` (objets),
+    // mais leurs représentations stables :
+    program?.programId.toBase58(),
+    contractPk?.toBase58(),
+  ]);
 
   return { data, loading, error };
 }

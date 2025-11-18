@@ -46,7 +46,7 @@ export default function ContractsPage() {
           </p>
         </div>
         <Link
-          href="/contracts/new"
+          href="/client/create-contract"
           className="text-xs px-3 py-2 rounded bg-indigo-500 hover:bg-indigo-600 text-white"
         >
           + New contract
@@ -102,7 +102,7 @@ export default function ContractsPage() {
                   {formatStatus(c.data.status)}
                 </span>
                 <Link
-                  href={`/contracts/${c.pda.toBase58()}`}
+                  href={`/client/contracts/${c.pda}`}
                   className="text-xs text-indigo-400 hover:text-indigo-300 underline"
                 >
                   View details

@@ -31,7 +31,7 @@ export default function ContractorPage() {
                 Explore open contracts and send your proposals.
               </p>
               <a
-                href="/contracts"
+                href="contractor/available-contracts"
                 className="inline-flex text-xs px-3 py-1 rounded bg-indigo-500 hover:bg-indigo-600"
               >
                 View contracts

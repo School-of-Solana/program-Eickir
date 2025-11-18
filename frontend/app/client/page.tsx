@@ -35,7 +35,7 @@ export default function ClientPage() {
                 View and manage all contracts you created.
               </p>
               <a
-                href="/contracts"
+                href="client/contracts"
                 className="inline-flex text-xs px-3 py-1 rounded bg-indigo-500 hover:bg-indigo-600"
               >
                 Go to contracts
@@ -49,7 +49,7 @@ export default function ClientPage() {
                 Start a new freelance mission and let contractors send proposals.
               </p>
               <a
-                href="/contracts/new"
+                href="/client/create-contract"
                 className="inline-flex text-xs px-3 py-1 rounded bg-emerald-500 hover:bg-emerald-600"
               >
                 New contract

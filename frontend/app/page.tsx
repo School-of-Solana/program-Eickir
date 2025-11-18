@@ -1,92 +1,261 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { PublicKey } from "@solana/web3.js";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { useRole } from "@/components/layout/RoleProvider";
+
+import { useSolanceProgram } from "@/lib/solana/program";
+import { useInitializeClient } from "@/hooks/useInitializeClient";
+import { useInitializeContractor } from "@/hooks/useInitializeContractor";
+
+const CLIENT_SEED = "client";
+const CONTRACTOR_SEED = "contractor";
 
 export default function HomePage() {
-  const { connected } = useWallet();
-  const { role, setRole } = useRole();
-  const router = useRouter();
+  const { publicKey, connected } = useWallet();
+  const program = useSolanceProgram();
 
-  const handleChooseClient = () => {
-    setRole("client");
-    router.push("/client");
-  };
+  const {
+    initializeClient,
+    loading: initClientLoading,
+    error: initClientError,
+  } = useInitializeClient();
 
-  const handleChooseContractor = () => {
-    setRole("contractor");
-    router.push("/contractor");
-  };
+  const {
+    initializeContractor,
+    loading: initContractorLoading,
+    error: initContractorError,
+  } = useInitializeContractor();
 
+  // états "existe ou pas"
+  const [clientPda, setClientPda] = useState<PublicKey | null>(null);
+  const [hasClientAccount, setHasClientAccount] = useState<boolean | null>(null);
+  const [clientCheckError, setClientCheckError] = useState<string | null>(null);
+  const [checkingClient, setCheckingClient] = useState(false);
+
+  const [contractorPda, setContractorPda] = useState<PublicKey | null>(null);
+  const [hasContractorAccount, setHasContractorAccount] = useState<boolean | null>(null);
+  const [contractorCheckError, setContractorCheckError] =
+    useState<string | null>(null);
+  const [checkingContractor, setCheckingContractor] = useState(false);
+
+  // --- Check Client account ---
+  useEffect(() => {
+    if (!program || !publicKey) {
+      setClientPda(null);
+      setHasClientAccount(null);
+      setClientCheckError(null);
+      return;
+    }
+
+    const [pda] = PublicKey.findProgramAddressSync(
+      [Buffer.from(CLIENT_SEED), publicKey.toBuffer()],
+      program.programId
+    );
+    setClientPda(pda);
+    setCheckingClient(true);
+    setClientCheckError(null);
+
+    (async () => {
+      try {
+        await (program.account as any).client.fetch(pda);
+        setHasClientAccount(true);
+      } catch (e: any) {
+        const msg = e?.message || e?.toString?.() || "Unknown error";
+        setClientCheckError(msg);
+        setHasClientAccount(false);
+      } finally {
+        setCheckingClient(false);
+      }
+    })();
+  }, [program, publicKey]);
+
+  // --- Check Contractor account ---
+  useEffect(() => {
+    if (!program || !publicKey) {
+      setContractorPda(null);
+      setHasContractorAccount(null);
+      setContractorCheckError(null);
+      return;
+    }
+
+    const [pda] = PublicKey.findProgramAddressSync(
+      [Buffer.from(CONTRACTOR_SEED), publicKey.toBuffer()],
+      program.programId
+    );
+    setContractorPda(pda);
+    setCheckingContractor(true);
+    setContractorCheckError(null);
+
+    (async () => {
+      try {
+        await (program.account as any).contractor.fetch(pda);
+        setHasContractorAccount(true);
+      } catch (e: any) {
+        const msg = e?.message || e?.toString?.() || "Unknown error";
+        setContractorCheckError(msg);
+        setHasContractorAccount(false);
+      } finally {
+        setCheckingContractor(false);
+      }
+    })();
+  }, [program, publicKey]);
+
+  // --- Rendu ---
   return (
-    <div className="h-full min-h-[70vh] flex flex-col justify-center gap-8">
-      {/* Hero section */}
-      <section className="space-y-3">
-        <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight">
-          Manage freelance missions <span className="text-indigo-400">on Solana</span>.
+    <div className="space-y-10">
+      {/* Hero */}
+      <section className="space-y-4">
+        <h1 className="text-3xl font-semibold tracking-tight">
+          Welcome to <span className="text-emerald-400">Solance</span>
         </h1>
-        <p className="text-sm sm:text-base text-slate-400 max-w-xl">
-          Solance lets clients create on-chain missions and contractors submit proposals.
-          Funds are locked in a vault and released on-chain once the work is done.
+        <p className="text-sm text-slate-400 max-w-xl">
+          A simple on-chain freelance marketplace on Solana. Clients create
+          missions (contracts), contractors send proposals, funds are escrowed
+          in a vault, and released once the work is done.
         </p>
       </section>
 
-      {/* Etat: wallet non connecté */}
       {!connected && (
-        <section className="space-y-2">
+        <section className="rounded-lg border border-slate-800 bg-slate-950/60 p-4">
           <p className="text-sm text-amber-400">
-            To get started, connect your wallet using the button in the top-right corner.
-          </p>
-          <p className="text-xs text-slate-500">
-            Once connected, you can choose whether you want to act as a client or as a contractor.
+            Connect your wallet using the button in the top-right to start using
+            Solance.
           </p>
         </section>
       )}
 
-      {/* Etat: wallet connecté */}
       {connected && (
-        <section className="grid gap-4 md:grid-cols-2">
-          {/* Carte Client */}
-          <button
-            type="button"
-            onClick={handleChooseClient}
-            className="text-left rounded-lg border border-slate-800 bg-slate-950/70 px-4 py-4 hover:border-indigo-500 hover:bg-slate-900 transition-colors"
-          >
-            <h2 className="text-sm font-semibold mb-1">I&apos;m a Client</h2>
-            <p className="text-xs text-slate-400 mb-3">
-              Create missions, receive proposals, choose your contractor and lock funds in
-              a secure on-chain vault.
+        <section className="grid gap-6 md:grid-cols-2">
+          {/* CARD CLIENT */}
+          <div className="rounded-lg border border-slate-800 bg-slate-950/70 p-4 space-y-3">
+            <h2 className="text-lg font-semibold">Use Solance as a Client</h2>
+            <p className="text-xs text-slate-400">
+              Post missions, review proposals from contractors, choose a
+              proposal, escrow funds and release payment when the work is done.
             </p>
-            <span className="inline-flex text-xs px-3 py-1 rounded-full bg-indigo-500 text-white">
-              Go to client dashboard →
-            </span>
-          </button>
 
-          {/* Carte Contractor */}
-          <button
-            type="button"
-            onClick={handleChooseContractor}
-            className="text-left rounded-lg border border-slate-800 bg-slate-950/70 px-4 py-4 hover:border-emerald-500 hover:bg-slate-900 transition-colors"
-          >
-            <h2 className="text-sm font-semibold mb-1">I&apos;m a Contractor</h2>
-            <p className="text-xs text-slate-400 mb-3">
-              Browse open missions, send proposals with your price, and get paid on-chain
-              once the work is validated.
+            <div className="text-xs text-slate-400 space-y-1">
+              <p>
+                Status :{" "}
+                {checkingClient ? (
+                  <span className="text-slate-300">Checking…</span>
+                ) : hasClientAccount ? (
+                  <span className="text-emerald-400">Client account found</span>
+                ) : (
+                  <span className="text-amber-400">
+                    No client account for this wallet
+                  </span>
+                )}
+              </p>
+              {clientPda && (
+                <p className="break-all">
+                  Client PDA:{" "}
+                  <span className="font-mono text-slate-500">
+                    {clientPda.toBase58()}
+                  </span>
+                </p>
+              )}
+            </div>
+
+            {initClientError && (
+              <p className="text-xs text-red-400">{initClientError}</p>
+            )}
+
+            <div className="flex gap-3 mt-2">
+              {hasClientAccount ? (
+                <Link
+                  href="/client"
+                  className="px-3 py-2 rounded bg-emerald-500 hover:bg-emerald-600 text-sm font-medium"
+                >
+                  Go to Client space
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  disabled={initClientLoading || checkingClient || !program}
+                  onClick={async () => {
+                    try {
+                      await initializeClient();
+                    } catch {
+                      // erreur déjà gérée dans le hook
+                    }
+                  }}
+                  className="px-3 py-2 rounded bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-sm font-medium"
+                >
+                  {initClientLoading ? "Initializing…" : "Initialize Client account"}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* CARD CONTRACTOR */}
+          <div className="rounded-lg border border-slate-800 bg-slate-950/70 p-4 space-y-3">
+            <h2 className="text-lg font-semibold">Use Solance as a Contractor</h2>
+            <p className="text-xs text-slate-400">
+              Browse open missions, submit proposals with your price, update
+              them, and get paid once the work is marked as done.
             </p>
-            <span className="inline-flex text-xs px-3 py-1 rounded-full bg-emerald-500 text-white">
-              Go to contractor dashboard →
-            </span>
-          </button>
+
+            <div className="text-xs text-slate-400 space-y-1">
+              <p>
+                Status :{" "}
+                {checkingContractor ? (
+                  <span className="text-slate-300">Checking…</span>
+                ) : hasContractorAccount ? (
+                  <span className="text-emerald-400">
+                    Contractor account found
+                  </span>
+                ) : (
+                  <span className="text-amber-400">
+                    No contractor account for this wallet
+                  </span>
+                )}
+              </p>
+              {contractorPda && (
+                <p className="break-all">
+                  Contractor PDA:{" "}
+                  <span className="font-mono text-slate-500">
+                    {contractorPda.toBase58()}
+                  </span>
+                </p>
+              )}
+            </div>
+
+            {initContractorError && (
+              <p className="text-xs text-red-400">{initContractorError}</p>
+            )}
+
+            <div className="flex gap-3 mt-2">
+              {hasContractorAccount ? (
+                <Link
+                  href="/contractor"
+                  className="px-3 py-2 rounded bg-indigo-500 hover:bg-indigo-600 text-sm font-medium"
+                >
+                  Go to Contractor space
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  disabled={initContractorLoading || checkingContractor || !program}
+                  onClick={async () => {
+                    try {
+                      await initializeContractor();
+                    } catch {
+                      // error already handled in hook
+                    }
+                  }}
+                  className="px-3 py-2 rounded bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 text-sm font-medium"
+                >
+                  {initContractorLoading
+                    ? "Initializing…"
+                    : "Initialize Contractor account"}
+                </button>
+              )}
+            </div>
+          </div>
         </section>
-      )}
-
-      {/* Petit rappel du rôle actif */}
-      {connected && role && (
-        <p className="text-[11px] text-slate-500">
-          Current mode: <span className="font-semibold capitalize text-slate-200">{role}</span>.
-          You can switch by coming back to the home page.
-        </p>
       )}
     </div>
   );
