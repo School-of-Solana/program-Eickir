@@ -5,7 +5,8 @@ use crate::constants::{TITLE_MAX_LENGTH, TOPIC_MAX_LENGTH};
 pub enum Status {
     Opened,
     Accepted, 
-    Closed
+    Closed, 
+    Paid
 }
 
 #[account]

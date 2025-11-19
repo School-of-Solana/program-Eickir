@@ -17,15 +17,26 @@ function lamportsToSol(v: any): string {
   }
 }
 
-function formatStatus(status: any): string {
+function isClosed(status: any): boolean {
+  if (!status) return false;
+  return status.closed !== undefined;
+}
+
+function isPaid(status: any): boolean {
+  if (!status) return false;
+  return status.paid !== undefined;
+}
+
+function formatStatusLabel(status: any): string {
   if (!status) return "Unknown";
   if (status.opened !== undefined) return "Opened";
   if (status.accepted !== undefined) return "Accepted";
-  if (status.closed !== undefined) return "Closed";
+  if (status.closed !== undefined) return "Closed – waiting payment";
+  if (status.paid !== undefined) return "Paid";
   return "Unknown";
 }
 
-export default function PendingPaymentsPage() {
+export default function ContractorPendingPaymentsPage() {
   const { publicKey, connected } = useWallet();
   const program = useSolanceProgram();
 
@@ -45,7 +56,7 @@ export default function PendingPaymentsPage() {
     setContractorPda(pda);
   }, [program, publicKey]);
 
-  // 2) Chargement des contrats "Closed" pour ce contractor
+  // 2) Chargement des contrats pour ce contractor (Closed ou Paid)
   useEffect(() => {
     if (!program || !contractorPda) return;
 
@@ -64,13 +75,13 @@ export default function PendingPaymentsPage() {
           },
         ]);
 
-        // Ensuite, on garde seulement ceux qui sont en status Closed
-        const closed = allForContractor.filter((c: any) => {
+        // Garder uniquement ceux Closed OU Paid
+        const relevant = allForContractor.filter((c: any) => {
           const s = c.account.status;
-          return s && s.closed !== undefined;
+          return isClosed(s) || isPaid(s);
         });
 
-        setContracts(closed);
+        setContracts(relevant);
       } catch (e: any) {
         console.error("load pending payments error:", e);
         setError(e.message ?? "Failed to load pending payments");
@@ -90,10 +101,11 @@ export default function PendingPaymentsPage() {
       <header className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold mb-1">
-            Pending payments
+            Pending / paid contracts
           </h1>
           <p className="text-sm text-slate-400">
-            Contracts you&apos;ve completed (Closed) and are waiting for client payment.
+            Contracts where you&apos;ve been selected as contractor, either
+            waiting for client payment or already paid.
           </p>
         </div>
         <Link
@@ -106,7 +118,7 @@ export default function PendingPaymentsPage() {
 
       {!connected && (
         <p className="text-sm text-amber-400">
-          Please connect your wallet to see your pending payments.
+          Please connect your wallet to see your closed/paid contracts.
         </p>
       )}
 
@@ -118,15 +130,14 @@ export default function PendingPaymentsPage() {
 
       {connected && contractorPda && (
         <>
-          {(loading) && (
+          {loading && (
             <p className="text-sm text-slate-400">Loading contracts…</p>
           )}
           {error && <p className="text-sm text-red-400">{error}</p>}
 
           {!loading && !error && !hasData && (
             <p className="text-sm text-slate-400">
-              You don&apos;t have any contracts in{" "}
-              <span className="font-semibold">Closed</span> status yet.
+              You don&apos;t have any contracts in Closed or Paid status yet.
             </p>
           )}
 
@@ -134,7 +145,9 @@ export default function PendingPaymentsPage() {
             <div className="grid gap-3 md:grid-cols-2">
               {contracts.map((c: any) => {
                 const pk = c.publicKey as PublicKey;
-                const statusLabel = formatStatus(c.account.status);
+                const s = c.account.status;
+                const statusLabel = formatStatusLabel(s);
+                const paid = isPaid(s);
                 const title = c.account.title ?? "(no title)";
                 const topic = c.account.topic ?? "";
                 const amountStr = c.account.amount
@@ -153,8 +166,14 @@ export default function PendingPaymentsPage() {
                           {topic}
                         </p>
                       </div>
-                      <span className="px-2 py-1 rounded-full bg-slate-800 text-[10px]">
-                        {statusLabel} / Waiting payment
+                      <span
+                        className={`px-2 py-1 rounded-full text-[10px] ${
+                          paid
+                            ? "bg-emerald-900/40 text-emerald-300"
+                            : "bg-slate-800 text-slate-200"
+                        }`}
+                      >
+                        {statusLabel}
                       </span>
                     </div>
 
@@ -171,12 +190,20 @@ export default function PendingPaymentsPage() {
                     </div>
 
                     <div className="mt-3 flex justify-between items-center gap-2">
-                      <span className="text-[11px] text-slate-400">
-                        The client must call <span className="font-mono">claimPaymentIx</span>.
-                      </span>
-                      {/* Si tu veux un lien vers la vue client/contract (lecture seule) */}
+                      {paid ? (
+                        <span className="text-[11px] text-emerald-300">
+                          ✅ Payment received on this contract.
+                        </span>
+                      ) : (
+                        <span className="text-[11px] text-slate-400">
+                          Waiting for the client to call{" "}
+                          <span className="font-mono">claimPaymentIx</span>.
+                        </span>
+                      )}
+
+                      {/* Optionnel : lien vers une page de détails (si tu veux) */}
                       {/* <Link
-                        href={`/client/contracts/${pk.toBase58()}`}
+                        href={`/contractor/contract/${pk.toBase58()}`}
                         className="text-[11px] px-2 py-1 rounded bg-slate-800 hover:bg-slate-700"
                       >
                         View details

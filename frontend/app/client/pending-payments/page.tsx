@@ -22,8 +22,12 @@ function lamportsToSol(v: any): string {
 // Helpers pour décoder Status enum venant de l'IDL
 function isClosed(status: any): boolean {
   if (!status) return false;
-  // Anchor renvoie un objet du type { closed: {} } ou { opened: {} } etc.
   return status.closed !== undefined;
+}
+
+function isPaid(status: any): boolean {
+  if (!status) return false;
+  return status.paid !== undefined;
 }
 
 export default function ClientPendingPaymentsPage() {
@@ -51,7 +55,7 @@ export default function ClientPendingPaymentsPage() {
     return pda;
   }, [program, publicKey]);
 
-  // Chargement des contracts "Closed" pour ce client
+  // Chargement des contracts "Closed NON-Paid" pour ce client
   useEffect(() => {
     if (!program || !publicKey || !clientPda) return;
 
@@ -59,24 +63,23 @@ export default function ClientPendingPaymentsPage() {
       setLoading(true);
       setLocalError(null);
       try {
-        // On filtre sur le champ client = clientPda
-        // Struct Contract :
-        //  discriminator (8 bytes) + client (32 bytes) + ...
+        // On filtre côté RPC sur le champ client = clientPda
         const all = await (program.account as any).contract.all([
           {
             memcmp: {
-              offset: 8, // 8 de discrim
+              offset: 8, // 8 bytes discrim
               bytes: clientPda.toBase58(),
             },
           },
         ]);
 
-        // Garder uniquement ceux en status Closed
-        const closedForClient = all.filter((c: any) =>
-          isClosed(c.account.status)
-        );
+        // On garde uniquement ceux en status Closed et NON Paid
+        const closedNotPaidForClient = all.filter((c: any) => {
+          const s = c.account.status;
+          return isClosed(s) && !isPaid(s);
+        });
 
-        setContracts(closedForClient);
+        setContracts(closedNotPaidForClient);
       } catch (e: any) {
         console.error("load pending payments error:", e);
         setLocalError(e.message ?? "Failed to load pending payments");
@@ -92,7 +95,7 @@ export default function ClientPendingPaymentsPage() {
     try {
       const contractPk: PublicKey = c.publicKey;
 
-      // `contract.contractor` contient le PDA du ContractorAccount (option<Pubkey>)
+      // `contract.contractor` contient le PDA du ContractorAccount (Option<Pubkey>)
       const contractorAccountPkRaw = c.account.contractor;
       if (!contractorAccountPkRaw) {
         throw new Error("No contractor account set on this contract");
@@ -112,7 +115,8 @@ export default function ClientPendingPaymentsPage() {
 
       await claimPayment(contractPk, contractorWalletPk, contractorAccountPk);
 
-      // On refetch la liste après succès
+      // Après succès, refetch : le contrat devrait passer en Status::Paid
+      // et donc disparaître de la liste (puisqu'on filtre !isPaid)
       setReloadCounter((n) => n + 1);
     } catch (e) {
       console.error("handleReleasePayment error:", e);
@@ -125,7 +129,8 @@ export default function ClientPendingPaymentsPage() {
       <div className="space-y-4">
         <h1 className="text-2xl font-semibold">Pending payments</h1>
         <p className="text-sm text-amber-400">
-          Please connect your wallet as a client to see contracts waiting for payment release.
+          Please connect your wallet as a client to see contracts waiting for
+          payment release.
         </p>
       </div>
     );
@@ -137,8 +142,8 @@ export default function ClientPendingPaymentsPage() {
         <div>
           <h1 className="text-2xl font-semibold">Pending payments</h1>
           <p className="text-sm text-slate-400">
-            Contracts that are closed and locked in vault, waiting for you (the client)
-            to release the payment to the contractor.
+            Contracts that are closed and locked in vault, waiting for you
+            (the client) to release the payment to the contractor.
           </p>
         </div>
         <Link
@@ -150,9 +155,7 @@ export default function ClientPendingPaymentsPage() {
       </header>
 
       <section className="text-xs space-y-2">
-        <p className="text-slate-500">
-          Connected client wallet:
-        </p>
+        <p className="text-slate-500">Connected client wallet:</p>
         <p className="font-mono break-all text-slate-100">
           {publicKey?.toBase58()}
         </p>
@@ -172,18 +175,15 @@ export default function ClientPendingPaymentsPage() {
         </p>
       )}
 
-      {localError && (
-        <p className="text-sm text-red-400">{localError}</p>
-      )}
+      {localError && <p className="text-sm text-red-400">{localError}</p>}
 
-      {claimError && (
-        <p className="text-sm text-red-400">{claimError}</p>
-      )}
+      {claimError && <p className="text-sm text-red-400">{claimError}</p>}
 
       <section className="space-y-3">
         {contracts.length === 0 && !loading && (
           <p className="text-sm text-slate-400">
-            You don&apos;t have any closed contracts pending payment at the moment.
+            You don&apos;t have any closed contracts pending payment at the
+            moment.
           </p>
         )}
 

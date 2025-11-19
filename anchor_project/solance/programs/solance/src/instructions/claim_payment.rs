@@ -23,6 +23,7 @@ use crate::errors::SolanceError;
     **contractor_info.try_borrow_mut_lamports()? += amount;
 
     contract.amount = None;
+    contract.status = Status::Paid;
 
     Ok(())
 }
