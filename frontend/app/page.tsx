@@ -29,6 +29,8 @@ export default function HomePage() {
   } = useInitializeContractor();
 
   // états "existe ou pas"
+  const [clientReload, setClientReload] = useState(0);
+  const [contractorReload, setContractorReload] = useState(0);
   const [clientPda, setClientPda] = useState<PublicKey | null>(null);
   const [hasClientAccount, setHasClientAccount] = useState<boolean | null>(null);
   const [clientCheckError, setClientCheckError] = useState<string | null>(null);
@@ -69,7 +71,7 @@ export default function HomePage() {
         setCheckingClient(false);
       }
     })();
-  }, [program, publicKey]);
+  }, [program, publicKey, clientReload]);
 
   // --- Check Contractor account ---
   useEffect(() => {
@@ -100,7 +102,7 @@ export default function HomePage() {
         setCheckingContractor(false);
       }
     })();
-  }, [program, publicKey]);
+  }, [program, publicKey, contractorReload]);
 
   // --- Rendu ---
   return (
@@ -178,6 +180,7 @@ export default function HomePage() {
                   onClick={async () => {
                     try {
                       await initializeClient();
+                      setClientReload((n) => n + 1);
                     } catch {
                       // erreur déjà gérée dans le hook
                     }
@@ -242,6 +245,7 @@ export default function HomePage() {
                   onClick={async () => {
                     try {
                       await initializeContractor();
+                      setContractorReload((n) => n + 1);
                     } catch {
                       // error already handled in hook
                     }

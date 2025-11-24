@@ -1,17 +1,55 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
-import { useWallet } from "@solana/wallet-adapter-react";
+import { useWallet, useConnection } from "@solana/wallet-adapter-react";
 import { useRole } from "./RoleProvider";
 
 export function NavBar() {
   const pathname = usePathname();
-  const { connected } = useWallet();
+  const { connected, publicKey } = useWallet();
+  const { connection } = useConnection();
   const { role } = useRole();
 
+  const [balanceSol, setBalanceSol] = useState<number | null>(null);
+  const [loadingBalance, setLoadingBalance] = useState(false);
+
   const isActive = (href: string) => pathname === href;
+
+  // Load SOL balance of the connected wallet
+  useEffect(() => {
+    if (!connected || !publicKey || !connection) {
+      setBalanceSol(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        setLoadingBalance(true);
+        const lamports = await connection.getBalance(publicKey);
+        if (!cancelled) {
+          setBalanceSol(lamports / 1_000_000_000); // lamports -> SOL
+        }
+      } catch (e) {
+        console.error("Failed to fetch balance:", e);
+        if (!cancelled) {
+          setBalanceSol(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingBalance(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [connected, publicKey, connection]);
 
   return (
     <header className="border-b border-slate-900/60 bg-slate-950/80 backdrop-blur">
@@ -46,9 +84,9 @@ export function NavBar() {
                     Client dashboard
                   </Link>
                   <Link
-                    href="/contracts"
+                    href="/client/contracts"
                     className={
-                      pathname.startsWith("/contracts")
+                      pathname.startsWith("/client/contracts")
                         ? "text-slate-100"
                         : "hover:text-slate-200"
                     }
@@ -71,14 +109,14 @@ export function NavBar() {
                     Contractor dashboard
                   </Link>
                   <Link
-                    href="/client"
+                    href="/contractor/available-contracts"
                     className={
-                      pathname.startsWith("/contracts")
+                      pathname.startsWith("/contractor/available-contracts")
                         ? "text-slate-100"
                         : "hover:text-slate-200"
                     }
                   >
-                    Client Dashboard
+                    Missions
                   </Link>
                 </>
               )}
@@ -86,13 +124,24 @@ export function NavBar() {
           )}
         </div>
 
-        {/* Wallet button */}
+        {/* Wallet + balance + mode */}
         <div className="flex items-center gap-3">
           {connected && role && (
             <span className="hidden sm:inline text-[11px] px-2 py-0.5 rounded-full bg-slate-900 border border-slate-700 text-slate-300">
               Mode: <span className="font-semibold capitalize">{role}</span>
             </span>
           )}
+
+          {connected && (
+            <span className="hidden sm:inline text-[11px] px-2 py-0.5 rounded-full bg-slate-900 border border-slate-700 text-slate-300 font-mono">
+              {loadingBalance
+                ? "Loading…"
+                : balanceSol !== null
+                ? `◎ ${balanceSol.toFixed(3)} SOL`
+                : "◎ -- SOL"}
+            </span>
+          )}
+
           <WalletMultiButton />
         </div>
       </div>
