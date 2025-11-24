@@ -71,14 +71,14 @@ export function NavBar() {
                     Contractor dashboard
                   </Link>
                   <Link
-                    href="/contracts"
+                    href="/client"
                     className={
                       pathname.startsWith("/contracts")
                         ? "text-slate-100"
                         : "hover:text-slate-200"
                     }
                   >
-                    Missions
+                    Client Dashboard
                   </Link>
                 </>
               )}
