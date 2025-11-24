@@ -22,7 +22,6 @@ use crate::errors::SolanceError;
     **vault_info.try_borrow_mut_lamports()? -= amount;
     **contractor_info.try_borrow_mut_lamports()? += amount;
 
-    contract.amount = None;
     contract.status = Status::Paid;
 
     Ok(())

@@ -32,7 +32,6 @@ function lamportsToSol(v: any): string {
 function formatStatus(status: any): string {
   if (!status) return "Unknown";
 
-  // Enum Anchor typique : { opened: {} } / { accepted: {} } / { closed: {} }
   if (status.opened !== undefined) return "Opened";
   if (status.accepted !== undefined) return "Accepted";
   if (status.closed !== undefined) return "Closed";
@@ -44,7 +43,6 @@ function formatStatus(status: any): string {
 function extractPubkeyFromMaybeOption(maybe: any): string | null {
   if (!maybe) return null;
 
-  // Cas Option style Anchor: { some: Pubkey } / { none: {} }
   if (maybe.some) {
     if (typeof maybe.some.toBase58 === "function") {
       return maybe.some.toBase58();
@@ -52,7 +50,6 @@ function extractPubkeyFromMaybeOption(maybe: any): string | null {
     return String(maybe.some);
   }
 
-  // Cas Pubkey direct
   if (typeof maybe.toBase58 === "function") {
     return maybe.toBase58();
   }
@@ -61,10 +58,9 @@ function extractPubkeyFromMaybeOption(maybe: any): string | null {
 }
 
 // Option<u64> ou u64 direct
-function extractAmountFromMaybeOption(maybe: any): number | null {
+function extractU64FromMaybeOption(maybe: any): number | null {
   if (maybe === null || maybe === undefined) return null;
 
-  // Option style Anchor: { some: value } / { none: {} }
   if (maybe.some !== undefined) {
     return Number(maybe.some);
   }
@@ -90,7 +86,6 @@ export default function ClientContractDetailPage() {
   const [proposals, setProposals] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Pour forcer un rechargement après un chooseProposal
   const [reloadCounter, setReloadCounter] = useState(0);
 
   const {
@@ -108,15 +103,13 @@ export default function ClientContractDetailPage() {
       setLoading(true);
       setError(null);
       try {
-        // 1) fetch du contrat
         const c = await (program.account as any).contract.fetch(contractPk);
         setContract(c);
 
-        // 2) fetch des proposals liées à ce contrat (memcmp sur le champ contract)
         const allProposals = await (program.account as any).proposal.all([
           {
             memcmp: {
-              offset: 8, // 8 bytes de discrim, puis vient `contract: Pubkey`
+              offset: 8, // discrim
               bytes: contractPk.toBase58(),
             },
           },
@@ -131,7 +124,6 @@ export default function ClientContractDetailPage() {
     })();
   }, [program, contractPk, reloadCounter]);
 
-  // Si l'adresse de contrat dans l'URL est invalide
   if (!contractPk) {
     return (
       <div className="space-y-3">
@@ -162,29 +154,39 @@ export default function ClientContractDetailPage() {
 
   const statusLabel = formatStatus(contract?.status);
 
-  // Contractor sélectionné (Option<Pubkey> → string)
   const selectedContractorPk = extractPubkeyFromMaybeOption(
     contract?.contractor
   );
 
-  const acceptedAmount = extractAmountFromMaybeOption(contract?.amount);
+  const acceptedAmount = extractU64FromMaybeOption(contract?.amount);
 
-  // On ne peut choisir une proposal que si le contrat est encore "Opened"
+  // 🆕 ID de la proposition acceptée
+  const acceptedProposalId = extractU64FromMaybeOption(
+    contract?.acceptedProposalId ?? contract?.accepted_proposal_id
+  );
+
+  const hasAcceptedProposal = acceptedProposalId !== null;
+
+  // On ne peut choisir qu’en status Opened et tant qu’aucune proposal n’a été acceptée
   const canChoose =
-    statusLabel === "Opened" && !loading && !choosing && proposals.length > 0;
+    statusLabel === "Opened" &&
+    !loading &&
+    !choosing &&
+    proposals.length > 0 &&
+    !hasAcceptedProposal;
 
   const handleChoose = async (p: any) => {
-    if (!program || !contractPk) return;
-    try {
-      const contractorAccountPk = p.account.contractor as PublicKey;
-      await chooseProposal(contractPk, p.publicKey, contractorAccountPk);
+      if (!program || !contractPk) return;
+      try {
+        const contractorAccountPk = p.account.contractor as PublicKey;
+        await chooseProposal(contractPk, p.publicKey, contractorAccountPk);
 
-      // Force un reload des données pour voir le statut/amount mis à jour
-      setReloadCounter((n) => n + 1);
-    } catch (e) {
-      console.error("handleChoose error:", e);
-    }
-  };
+        // Force un reload des données pour voir le statut/amount mis à jour
+        setReloadCounter((n) => n + 1);
+      } catch (e) {
+        console.error("handleChoose error:", e);
+      }
+    };
 
   return (
     <div className="space-y-6">
@@ -262,6 +264,12 @@ export default function ClientContractDetailPage() {
                   : "Not set"}
               </p>
             </div>
+            {hasAcceptedProposal && (
+              <div className="space-y-1">
+                <p className="text-slate-500">Accepted proposal ID</p>
+                <p className="font-mono">{acceptedProposalId}</p>
+              </div>
+            )}
           </div>
         </section>
       )}
@@ -287,10 +295,8 @@ export default function ClientContractDetailPage() {
                 p.account.contractor?.toBase58?.() ??
                 String(p.account.contractor);
 
-              // True seulement pour la proposition dont le contractor
-              // correspond au contractor sélectionné sur le contrat
               const isSelected =
-                !!selectedContractorPk && contractorPk === selectedContractorPk;
+                hasAcceptedProposal && proposalId === acceptedProposalId;
 
               return (
                 <div
@@ -319,11 +325,19 @@ export default function ClientContractDetailPage() {
                   </p>
 
                   <div className="pt-2 flex items-center justify-between gap-2">
-                    {isSelected ? (
-                      <span className="text-[10px] px-2 py-1 rounded-full bg-emerald-900/40 text-emerald-300">
-                        Selected for this contract
-                      </span>
+                    {hasAcceptedProposal ? (
+                      // ✅ une proposal a été choisie → plus aucun bouton
+                      isSelected ? (
+                        <span className="text-[10px] px-2 py-1 rounded-full bg-emerald-900/40 text-emerald-300">
+                          Selected proposal
+                        </span>
+                      ) : (
+                        <span className="text-[10px] px-2 py-1 rounded-full bg-slate-800 text-slate-300">
+                          Not selected proposal
+                        </span>
+                      )
                     ) : (
+                      // 🟦 aucune proposal encore acceptée → on peut choisir
                       <button
                         type="button"
                         onClick={() => handleChoose(p)}

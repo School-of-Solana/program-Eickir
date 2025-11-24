@@ -15,6 +15,7 @@ pub fn initialize_contract(ctx: Context<InitializeContract>, title: String, topi
     contract_account.topic = topic;
     contract_account.amount = None;
     contract_account.status = Status::Opened;
+    contract_account.accepted_proposal_id = None;
 
     let client_account = &mut ctx.accounts.client_account;
     client_account.next_contract_id += 1;
@@ -44,7 +45,7 @@ pub struct InitializeContract<'info> {
         payer = signer, 
         seeds = [CONTRACT_SEED, client_account.key().as_ref(), client_account.next_contract_id.to_le_bytes().as_ref()], 
         bump, 
-        space = 8 + 1 + 32 + 4 + 8 + 100 + 4 + 500 + 1 + 8 + 1, 
+        space = 8 + 1 + 32 + 4 + 8 + 100 + 4 + 500 + 1 + 8 + 1 + 1 + 8, 
         constraint = title.len() <= TITLE_MAX_LENGTH @ SolanceError::TitleTooLong,
         constraint = topic.len() <= TOPIC_MAX_LENGTH @ SolanceError::TopicTooLong,
     )]

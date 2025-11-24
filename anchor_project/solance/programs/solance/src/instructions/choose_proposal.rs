@@ -28,6 +28,7 @@ pub fn choose_proposal(ctx: Context<ChooseProposal>) -> Result<()> {
     contract.contractor = Some(proposal.contractor);
     contract.amount = Some(proposal.amount);
     contract.status = Status::Accepted;
+    contract.accepted_proposal_id = Some(proposal.proposal_id);
 
     Ok(())
 }

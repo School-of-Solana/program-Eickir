@@ -697,6 +697,12 @@
                 "name": "Status"
               }
             }
+          },
+          {
+            "name": "accepted_proposal_id",
+            "type": {
+              "option": "u64"
+            }
           }
         ]
       }

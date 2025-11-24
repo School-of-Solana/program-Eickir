@@ -17,9 +17,7 @@ export default function NewContractPage() {
     e.preventDefault();
     if (!connected) return;
 
-    // ici tu appelleras:
     await createContract(title, topic);
-    console.log("TODO: call createContract(title, topic)", { title, topic });
   };
 
   if (!connected) {
@@ -71,7 +69,7 @@ export default function NewContractPage() {
           type="submit"
           className="inline-flex items-center justify-center rounded-md bg-indigo-500 hover:bg-indigo-600 px-4 py-2 text-sm font-medium"
         >
-          Create contract (TODO: on-chain)
+          Create contract
         </button>
       </form>
     </div>

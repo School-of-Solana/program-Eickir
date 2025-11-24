@@ -69,7 +69,7 @@ export default function ContractsPage() {
         <p className="text-sm text-slate-400">
           You don&apos;t have any contracts yet.{" "}
           <Link
-            href="/contracts/new"
+            href="/client/create-contract"
             className="underline text-indigo-400 hover:text-indigo-300"
           >
             Create your first one.

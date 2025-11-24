@@ -26,7 +26,8 @@ pub struct Contract {
     #[max_len(TOPIC_MAX_LENGTH)]
     pub topic: String, 
     pub amount: Option<u64>, 
-    pub status: Status
+    pub status: Status,
+    pub accepted_proposal_id: Option<u64>
 
 }
 
