@@ -12,6 +12,15 @@ import { useCreateProposal } from "@/hooks/useCreateProposal";
 
 const CONTRACTOR_SEED = "contractor";
 
+function lamportsToSol(v: any): string {
+  if (v === null || v === undefined) return "-";
+  try {
+    return (Number(v) / 1_000_000_000).toFixed(3);
+  } catch {
+    return "-";
+  }
+}
+
 export default function ContractorAvailableContractPage() {
   const params = useParams();
   const { publicKey, connected } = useWallet();
@@ -88,16 +97,24 @@ export default function ContractorAvailableContractPage() {
     lastProposalPda,
   } = useCreateProposal();
 
-  // 4. Handlers UI
-  const [amountInput, setAmountInput] = useState<string>("");
+    // 4. Handlers UI
+    const [amountInputSol, setAmountInputSol] = useState<string>("");
+    const handleCreateProposal = async () => {
+      if (!contractPubkey) return;
+      if (!amountInputSol) return;
 
-  const handleCreateProposal = async () => {
-    if (!contractPubkey) return;
-    if (!amountInput) return;
+      // On parse le montant en SOL (string -> number)
+      const sol = parseFloat(amountInputSol);
+      if (Number.isNaN(sol) || sol < 0) {
+        alert("Please enter a valid non-negative amount in SOL.");
+        return;
+      }
 
-    const lamports = BigInt(amountInput); // tu peux adapter en SOL->lamports si besoin
-    await createProposal(contractPubkey, lamports);
-  };
+      // Conversion SOL -> lamports
+      const lamports = BigInt(Math.round(sol * 1_000_000_000));
+
+      await createProposal(contractPubkey, lamports);
+    };
 
   // 5. Différents cas d’affichage
 
@@ -202,14 +219,14 @@ export default function ContractorAvailableContractPage() {
                (Proposal filtered par { contract, contractor }) et préremplir le champ. */}
             <div className="space-y-2">
               <label className="block text-xs text-slate-300">
-                Amount (lamports)
+                Amount (in SOL)
               </label>
               <input
                 type="number"
                 min="0"
                 className="w-full rounded bg-slate-900 border border-slate-700 px-3 py-2 text-sm"
-                value={amountInput}
-                onChange={(e) => setAmountInput(e.target.value)}
+                value={amountInputSol}
+                onChange={(e) => setAmountInputSol(e.target.value)}
               />
             </div>
 
@@ -225,7 +242,7 @@ export default function ContractorAvailableContractPage() {
 
             <button
               type="button"
-              disabled={creatingProposal || !amountInput}
+              disabled={creatingProposal || !amountInputSol}
               onClick={handleCreateProposal}
               className="px-4 py-2 rounded bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-sm font-medium"
             >

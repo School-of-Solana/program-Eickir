@@ -217,7 +217,7 @@ export default function ClientPendingPaymentsPage() {
                       </p>
                     </div>
                     <span className="px-2 py-1 rounded-full bg-emerald-900/40 text-emerald-300 text-[10px]">
-                      Closed – pending payment
+                      pending payment
                     </span>
                   </div>
 
