@@ -9,8 +9,6 @@ import { useChooseProposal } from "@/hooks/useChooseProposal";
 
 const CONTRACTOR_SEED = "contractor";
 
-// -------- Helpers --------
-
 function tryParsePubkey(s: string | undefined): PublicKey | null {
   if (!s) return null;
   try {
@@ -39,7 +37,6 @@ function formatStatus(status: any): string {
   return "Unknown";
 }
 
-// Option<Pubkey> ou Pubkey direct
 function extractPubkeyFromMaybeOption(maybe: any): string | null {
   if (!maybe) return null;
 
@@ -57,7 +54,6 @@ function extractPubkeyFromMaybeOption(maybe: any): string | null {
   return String(maybe);
 }
 
-// Option<u64> ou u64 direct
 function extractU64FromMaybeOption(maybe: any): number | null {
   if (maybe === null || maybe === undefined) return null;
 
@@ -67,8 +63,6 @@ function extractU64FromMaybeOption(maybe: any): number | null {
 
   return Number(maybe);
 }
-
-// -------- Page --------
 
 export default function ClientContractDetailPage() {
   const params = useParams();
@@ -95,7 +89,6 @@ export default function ClientContractDetailPage() {
     lastVaultPda,
   } = useChooseProposal();
 
-  // Chargement du contrat + des proposals associées
   useEffect(() => {
     if (!program || !contractPk) return;
 
@@ -109,7 +102,7 @@ export default function ClientContractDetailPage() {
         const allProposals = await (program.account as any).proposal.all([
           {
             memcmp: {
-              offset: 8, // discrim
+              offset: 8, 
               bytes: contractPk.toBase58(),
             },
           },
@@ -160,14 +153,12 @@ export default function ClientContractDetailPage() {
 
   const acceptedAmount = extractU64FromMaybeOption(contract?.amount);
 
-  // 🆕 ID de la proposition acceptée
   const acceptedProposalId = extractU64FromMaybeOption(
     contract?.acceptedProposalId ?? contract?.accepted_proposal_id
   );
 
   const hasAcceptedProposal = acceptedProposalId !== null;
 
-  // On ne peut choisir qu’en status Opened et tant qu’aucune proposal n’a été acceptée
   const canChoose =
     statusLabel === "Opened" &&
     !loading &&
@@ -181,7 +172,6 @@ export default function ClientContractDetailPage() {
         const contractorAccountPk = p.account.contractor as PublicKey;
         await chooseProposal(contractPk, p.publicKey, contractorAccountPk);
 
-        // Force un reload des données pour voir le statut/amount mis à jour
         setReloadCounter((n) => n + 1);
       } catch (e) {
         console.error("handleChoose error:", e);
@@ -326,7 +316,6 @@ export default function ClientContractDetailPage() {
 
                   <div className="pt-2 flex items-center justify-between gap-2">
                     {hasAcceptedProposal ? (
-                      // ✅ une proposal a été choisie → plus aucun bouton
                       isSelected ? (
                         <span className="text-[10px] px-2 py-1 rounded-full bg-emerald-900/40 text-emerald-300">
                           Selected proposal
@@ -337,7 +326,6 @@ export default function ClientContractDetailPage() {
                         </span>
                       )
                     ) : (
-                      // 🟦 aucune proposal encore acceptée → on peut choisir
                       <button
                         type="button"
                         onClick={() => handleChoose(p)}

@@ -4,12 +4,12 @@ import { PublicKey } from "@solana/web3.js";
 
 interface ContractAccount {
   client: PublicKey;
-  contractor: string | PublicKey | null; // Option<Pubkey> -> sérialisé
+  contractor: string | PublicKey | null; 
   contractId: bigint | number;
   title: string;
   topic: string;
   amount: bigint | number | null;
-  status: any; // enum Status, tu peux affiner avec les types générés
+  status: any; 
 }
 
 interface Props {
@@ -41,7 +41,6 @@ export function ContractHeader({ contractPubkey, contract }: Props) {
 }
 
 function ContractStatusBadge({ status }: { status: any }) {
-  // à adapter à la vraie structure de Status
   let label = "Unknown";
   if ("opened" in status) label = "Opened";
   if ("accepted" in status) label = "Accepted";

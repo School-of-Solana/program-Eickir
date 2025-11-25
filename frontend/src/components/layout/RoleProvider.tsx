@@ -20,7 +20,6 @@ const RoleContext = createContext<RoleContextValue | undefined>(undefined);
 export function RoleProvider({ children }: { children: ReactNode }) {
   const [role, setRoleState] = useState<Role>(null);
 
-  // On restaure le rôle depuis le localStorage (si existant)
   useEffect(() => {
     if (typeof window === "undefined") return;
     const stored = window.localStorage.getItem("solance:role");

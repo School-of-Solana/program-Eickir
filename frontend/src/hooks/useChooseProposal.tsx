@@ -26,13 +26,13 @@ export function useChooseProposal() {
       setError(null);
 
       try {
-        // client_account PDA
+
         const [clientPda] = PublicKey.findProgramAddressSync(
           [Buffer.from(CLIENT_SEED), publicKey.toBuffer()],
           program.programId
         );
 
-        // vault PDA: ["vault", contract]
+
         const [vaultPda] = PublicKey.findProgramAddressSync(
           [Buffer.from(VAULT_SEED), contractPk.toBuffer()],
           program.programId

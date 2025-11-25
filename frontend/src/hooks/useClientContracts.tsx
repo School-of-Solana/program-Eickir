@@ -11,7 +11,7 @@ const CONTRACT_SEED = "contract";
 
 export interface ClientContract {
   pda: PublicKey;
-  data: any; // tu peux typer avec le type TS généré si tu veux
+  data: any;
   id: number;
 }
 
@@ -36,14 +36,12 @@ export function useClientContracts() {
       setError(null);
 
       try {
-        // 1. PDA du Client
         const [clientPdaDerived] = PublicKey.findProgramAddressSync(
           [Buffer.from(CLIENT_SEED), publicKey.toBuffer()],
           program.programId
         );
         setClientPda(clientPdaDerived);
 
-        // 2. Fetch Client account
         const clientAccount: any = await (program.account as any).client.fetch(
           clientPdaDerived
         );
@@ -72,7 +70,6 @@ export function useClientContracts() {
             );
             results.push({ pda: contractPda, data: contractData, id: i });
           } catch (e) {
-            // Si un contract manque (théoriquement non dans ton design) on ignore
             console.warn("Could not fetch contract", i, e);
           }
         }

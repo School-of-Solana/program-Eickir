@@ -19,7 +19,6 @@ function lamportsToSol(v: any): string {
   }
 }
 
-// Helpers pour décoder Status enum venant de l'IDL
 function isClosed(status: any): boolean {
   if (!status) return false;
   return status.closed !== undefined;
@@ -45,7 +44,7 @@ export default function ClientPendingPaymentsPage() {
     error: claimError,
   } = useClaimPayment();
 
-  // Client PDA dérivé depuis le wallet connecté
+
   const clientPda = useMemo(() => {
     if (!program || !publicKey) return null;
     const [pda] = PublicKey.findProgramAddressSync(
@@ -55,7 +54,6 @@ export default function ClientPendingPaymentsPage() {
     return pda;
   }, [program, publicKey]);
 
-  // Chargement des contracts "Closed NON-Paid" pour ce client
   useEffect(() => {
     if (!program || !publicKey || !clientPda) return;
 
@@ -63,17 +61,15 @@ export default function ClientPendingPaymentsPage() {
       setLoading(true);
       setLocalError(null);
       try {
-        // On filtre côté RPC sur le champ client = clientPda
         const all = await (program.account as any).contract.all([
           {
             memcmp: {
-              offset: 8, // 8 bytes discrim
+              offset: 8,
               bytes: clientPda.toBase58(),
             },
           },
         ]);
 
-        // On garde uniquement ceux en status Closed et NON Paid
         const closedNotPaidForClient = all.filter((c: any) => {
           const s = c.account.status;
           return isClosed(s) && !isPaid(s);
@@ -95,7 +91,6 @@ export default function ClientPendingPaymentsPage() {
     try {
       const contractPk: PublicKey = c.publicKey;
 
-      // `contract.contractor` contient le PDA du ContractorAccount (Option<Pubkey>)
       const contractorAccountPkRaw = c.account.contractor;
       if (!contractorAccountPkRaw) {
         throw new Error("No contractor account set on this contract");
@@ -107,7 +102,6 @@ export default function ClientPendingPaymentsPage() {
           : contractorAccountPkRaw
       );
 
-      // On récupère le contractor_account pour obtenir son owner = wallet du contractor
       const contractorAccount = await (program.account as any).contractor.fetch(
         contractorAccountPk
       );
@@ -115,12 +109,11 @@ export default function ClientPendingPaymentsPage() {
 
       await claimPayment(contractPk, contractorWalletPk, contractorAccountPk);
 
-      // Après succès, refetch : le contrat devrait passer en Status::Paid
-      // et donc disparaître de la liste (puisqu'on filtre !isPaid)
+
       setReloadCounter((n) => n + 1);
     } catch (e) {
       console.error("handleReleasePayment error:", e);
-      // l'erreur détaillée est gérée dans le hook via `claimError`
+
     }
   };
 

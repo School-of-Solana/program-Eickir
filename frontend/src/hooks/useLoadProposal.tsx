@@ -20,7 +20,7 @@ export function useLoadProposals(contractPk: PublicKey | null) {
         const proposals = await (program.account as any).proposal.all([
           {
             memcmp: {
-              offset: 8, // 8 bytes discriminator, puis contract pubkey
+              offset: 8,
               bytes: contractPk.toBase58(),
             },
           },

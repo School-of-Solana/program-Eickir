@@ -4,7 +4,6 @@ import { PublicKey } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
 import { SOLANCE_PROGRAM_ID } from "./program";
 
-// ⚠️ Doivent matcher tes constantes Rust
 export const CLIENT_SEED = "client";
 export const CONTRACTOR_SEED = "contractor";
 export const CONTRACT_SEED = "contract";

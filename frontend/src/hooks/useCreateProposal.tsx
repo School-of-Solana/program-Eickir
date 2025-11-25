@@ -23,13 +23,11 @@ export function useCreateProposal() {
       setError(null);
 
       try {
-        // 1. PDA du contractor : ["contractor", contractor_pubkey]
         const [contractorPda] = PublicKey.findProgramAddressSync(
           [Buffer.from(CONTRACTOR_SEED), publicKey.toBuffer()],
           program.programId
         );
 
-        // 2. Fetch contractor pour récupérer next_proposal_id / nextProposalId
         const contractorAccount: any = await (program.account as any).contractor.fetch(
           contractorPda
         );
@@ -40,7 +38,6 @@ export function useCreateProposal() {
             0
         );
 
-        // 3. PDA de la proposal : ["proposal", contractor_account, next_proposal_id]
         const [proposalPda] = PublicKey.findProgramAddressSync(
           [
             Buffer.from(PROPOSAL_SEED),
@@ -55,7 +52,6 @@ export function useCreateProposal() {
             ? new BN(amountLamports.toString())
             : new BN(amountLamports);
 
-        // 4. Appel ix
         await program.methods
           .initializeProposalIx(amountBn)
           .accounts({

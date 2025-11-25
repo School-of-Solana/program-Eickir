@@ -13,7 +13,7 @@ export type OpenContract = {
   contractId: number;
   title: string;
   topic: string;
-  amount: number | null; // lamports
+  amount: number | null;
   status: ContractStatus;
 };
 
@@ -30,7 +30,6 @@ export function useOpenContracts() {
       setLoading(true);
       setError(null);
       try {
-        // tous les accounts Contract du program
         const all = await (program.account as any).contract.all();
 
         const opened = all

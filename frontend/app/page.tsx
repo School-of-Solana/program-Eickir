@@ -28,7 +28,6 @@ export default function HomePage() {
     error: initContractorError,
   } = useInitializeContractor();
 
-  // états "existe ou pas"
   const [clientReload, setClientReload] = useState(0);
   const [contractorReload, setContractorReload] = useState(0);
   const [clientPda, setClientPda] = useState<PublicKey | null>(null);
@@ -42,7 +41,6 @@ export default function HomePage() {
     useState<string | null>(null);
   const [checkingContractor, setCheckingContractor] = useState(false);
 
-  // --- Check Client account ---
   useEffect(() => {
     if (!program || !publicKey) {
       setClientPda(null);
@@ -73,7 +71,7 @@ export default function HomePage() {
     })();
   }, [program, publicKey, clientReload]);
 
-  // --- Check Contractor account ---
+
   useEffect(() => {
     if (!program || !publicKey) {
       setContractorPda(null);
@@ -104,7 +102,6 @@ export default function HomePage() {
     })();
   }, [program, publicKey, contractorReload]);
 
-  // --- Rendu ---
   return (
     <div className="space-y-10">
       {/* Hero */}
@@ -182,7 +179,7 @@ export default function HomePage() {
                       await initializeClient();
                       setClientReload((n) => n + 1);
                     } catch {
-                      // erreur déjà gérée dans le hook
+                      
                     }
                   }}
                   className="px-3 py-2 rounded bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-sm font-medium"
@@ -247,7 +244,6 @@ export default function HomePage() {
                       await initializeContractor();
                       setContractorReload((n) => n + 1);
                     } catch {
-                      // error already handled in hook
                     }
                   }}
                   className="px-3 py-2 rounded bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 text-sm font-medium"

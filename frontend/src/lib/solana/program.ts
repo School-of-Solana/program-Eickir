@@ -6,11 +6,10 @@ import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { PublicKey } from "@solana/web3.js";
 import idl from "./solance_idl.json";
 
-// 1. Récupérer le programId depuis l'ENV ou l'IDL
 const PROGRAM_ID_STR =
   process.env.NEXT_PUBLIC_SOLANCE_PROGRAM_ID ||
-  (idl as any).address || // généré par Anchor
-  "9os8f9dUNrZzg53kjGb1wj1stMabFFj4fuRnrF9pCjR6"; // fallback éventuel
+  (idl as any).address ||
+  "9os8f9dUNrZzg53kjGb1wj1stMabFFj4fuRnrF9pCjR6"; 
 
 export const SOLANCE_PROGRAM_ID = new PublicKey(PROGRAM_ID_STR);
 
@@ -23,7 +22,6 @@ export function useSolanceProgram() {
 
     const provider = new AnchorProvider(
       connection,
-      // @solana/wallet-adapter-react est compatible avec AnchorProvider
       wallet as any,
       AnchorProvider.defaultOptions()
     );

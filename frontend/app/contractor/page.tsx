@@ -20,7 +20,6 @@ export default function ContractorPage() {
   const [checking, setChecking] = useState(false);
   const [checkError, setCheckError] = useState<string | null>(null);
 
-  // Vérifie si le ContractorAccount existe pour ce wallet
   useEffect(() => {
     if (!program || !publicKey) {
       setContractorPda(null);
@@ -44,7 +43,7 @@ export default function ContractorPage() {
         await (program.account as any).contractor.fetch(pda);
         setHasContractorAccount(true);
       } catch (e: any) {
-        // Si fetch échoue → compte non initialisé
+
         const msg = e?.message || e?.toString?.() || "Unknown error";
         setCheckError(msg);
         setHasContractorAccount(false);

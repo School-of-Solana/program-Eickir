@@ -46,7 +46,6 @@ export default function ContractorPendingPaymentsPage() {
   const [error, setError] = useState<string | null>(null);
   const [reloadCounter, setReloadCounter] = useState(0);
 
-  // 1) Calcul du Contractor PDA à partir du wallet connecté
   useEffect(() => {
     if (!program || !publicKey) return;
     const [pda] = PublicKey.findProgramAddressSync(
@@ -56,7 +55,6 @@ export default function ContractorPendingPaymentsPage() {
     setContractorPda(pda);
   }, [program, publicKey]);
 
-  // 2) Chargement des contrats pour ce contractor (Closed ou Paid)
   useEffect(() => {
     if (!program || !contractorPda) return;
 
@@ -64,8 +62,7 @@ export default function ContractorPendingPaymentsPage() {
       setLoading(true);
       setError(null);
       try {
-        // On filtre côté RPC sur le contractor (Option<Pubkey> = Some(pubkey))
-        // Layout approx : 8 (discrim) + 32 (client) + 1 (option tag) = 41
+
         const allForContractor = await (program.account as any).contract.all([
           {
             memcmp: {
@@ -75,7 +72,6 @@ export default function ContractorPendingPaymentsPage() {
           },
         ]);
 
-        // Garder uniquement ceux Closed OU Paid
         const relevant = allForContractor.filter((c: any) => {
           const s = c.account.status;
           return isClosed(s) || isPaid(s);

@@ -4,8 +4,6 @@ import { Solance } from "../target/types/solance";
 import { expect } from "chai";
 import { strict as assert } from "assert";
 
-// ---------- HELPERS GLOBAUX ----------
-
 async function airdrop(
   connection: anchor.web3.Connection,
   address: anchor.web3.PublicKey,
@@ -23,10 +21,10 @@ async function airdrop(
  *   expectAnchorError(err, "UnauthorizedAccount")
  */
 function expectAnchorError(err: any, expectedCode: string) {
-  // Cas "moderne" : erreur bien typée AnchorError
+
   if (err instanceof AnchorError) {
-    const code = err.error.errorCode.code; // ex: "UnauthorizedAccount"
-    const num = err.error.errorCode.number; // ex: 6000
+    const code = err.error.errorCode.code;  
+    const num = err.error.errorCode.number;
 
     expect(
       code,
@@ -35,7 +33,6 @@ function expectAnchorError(err: any, expectedCode: string) {
     return;
   }
 
-  // Fallback : anciens formats ou erreurs "raw" (RPC)
   const msg = String(err);
   const logs: string[] =
     err.logs ??
@@ -58,7 +55,6 @@ function expectAnchorError(err: any, expectedCode: string) {
   ).to.be.true;
 }
 
-// Vérifie si un compte existe déjà on-chain
 async function accountExists(
   connection: anchor.web3.Connection,
   pubkey: anchor.web3.PublicKey
@@ -67,7 +63,7 @@ async function accountExists(
   return info !== null;
 }
 
-// S'assure que le ContractorAccount est bien initialisé pour une paire (wallet, pda)
+
 async function ensureContractorInitialized(
   program: Program<Solance>,
   connection: anchor.web3.Connection,
@@ -75,7 +71,6 @@ async function ensureContractorInitialized(
   contractorPda: anchor.web3.PublicKey
 ) {
   if (await accountExists(connection, contractorPda)) {
-    // déjà créé → on ne refait pas l'IX, donc pas de "already in use"
     return;
   }
 
@@ -90,7 +85,6 @@ async function ensureContractorInitialized(
     .rpc({ commitment: "confirmed" });
 }
 
-// Pareil pour les client accounts, si tu en as besoin
 async function ensureClientInitialized(
   program: Program<Solance>,
   connection: anchor.web3.Connection,
@@ -112,8 +106,6 @@ async function ensureClientInitialized(
     .rpc({ commitment: "confirmed" });
 }
 
-
-// ---------- TESTS PRINCIPAUX ----------
 
 describe("solance program", () => {
   // ---------- SEEDS ----------
@@ -279,7 +271,6 @@ describe("solance program", () => {
           "Expected initializeClientIx to fail for already initialized PDA"
         );
       } catch (err: any) {
-        // Erreur système Solana: "already in use"
         expect(String(err)).to.include("already in use");
       }
     });
@@ -406,7 +397,6 @@ describe("solance program", () => {
       expect(contractAccount.client.toBase58()).to.equal(
         client_pda.toBase58()
       );
-      // ⚠️ Champ Rust: contract_id → JS: contractId
       expect(contractAccount.contractId.toNumber()).to.equal(0);
       expect(contractAccount.title).to.equal(good_title_length);
       expect(contractAccount.topic).to.equal(good_topic_length);
@@ -453,7 +443,6 @@ describe("solance program", () => {
     it("Should fail to initialize a Contract when the signer is not the owner of the Client Account", async () => {
       await airdrop(provider.connection, client_attacker.publicKey);
 
-      // Le client_attacker initialise SON propre compte client
       await program.methods
         .initializeClientIx()
         .accounts({
@@ -464,13 +453,12 @@ describe("solance program", () => {
         .signers([client_attacker])
         .rpc({ commitment: "confirmed" });
 
-      // Puis tente d'utiliser le client_pda du vrai client
       try {
         await program.methods
           .initializeContractIx(good_title_length, good_topic_length)
           .accounts({
             signer: client_attacker.publicKey,
-            clientAccount: client_pda, // pas son compte
+            clientAccount: client_pda,
             contractAccount: second_contract_pda,
             systemProgram: anchor.web3.SystemProgram.programId,
           })
@@ -519,13 +507,11 @@ describe("solance program", () => {
     it("Should fail to initialize a Proposal when the signer is not the owner of the Contractor Account", async () => {
       await airdrop(provider.connection, contractor_attacker.publicKey);
 
-      // On récupère le prochain proposal id du "vrai" contractor
       const contractorAccount = await program.account.contractor.fetch(
         contractor_pda
       );
       const nextProposalId = contractorAccount.nextProposalId as anchor.BN;
 
-      // On dérive correctement le PDA à partir du contractor_pda
       const [unauthorized_proposal_pda] =
         anchor.web3.PublicKey.findProgramAddressSync(
           [
@@ -540,9 +526,9 @@ describe("solance program", () => {
         await program.methods
           .initializeProposalIx(amount)
           .accounts({
-            contractor: contractor_attacker.publicKey, // pas owner du contractor_account
+            contractor: contractor_attacker.publicKey, 
             contract: first_contract_pda,
-            contractorAccount: contractor_pda, // owner = contractor, pas attacker
+            contractorAccount: contractor_pda,
             proposalAccount: unauthorized_proposal_pda,
             systemProgram: anchor.web3.SystemProgram.programId,
           })
@@ -551,7 +537,7 @@ describe("solance program", () => {
 
         assert.fail("Expected UnauthorizedAccount / constraint error");
       } catch (err: any) {
-        // On accepte UnauthorizedAccount OU ConstraintSeeds
+
         if (err instanceof AnchorError) {
           const code = err.error.errorCode.code;
           expect(
@@ -560,8 +546,6 @@ describe("solance program", () => {
           ).to.include(code);
           return;
         }
-
-        // Fallback : message/logs
         const msg = String(err);
         const logs: string[] =
           err.logs ??
@@ -577,8 +561,6 @@ describe("solance program", () => {
       }
     });
   });
-
-  // ---------- update_proposal_ix ----------
 
   describe("update proposal", () => {
     it("Should let contractor update amount on an open proposal", async () => {
@@ -600,7 +582,6 @@ describe("solance program", () => {
     });
 
     it("Should fail to update a Proposal that has been accepted (ProposalCannotBeUpdated)", async () => {
-      // 1) Nouveau contract pour ce test
       const clientAccount = await program.account.client.fetch(client_pda);
       const nextId = clientAccount.nextContractId as anchor.BN;
 
@@ -631,7 +612,6 @@ describe("solance program", () => {
         .signers([client])
         .rpc({ commitment: "confirmed" });
 
-      // 2) Proposal pour ce contract
       const contractorAccount = await program.account.contractor.fetch(
         contractor_pda
       );
@@ -661,7 +641,6 @@ describe("solance program", () => {
         .signers([contractor])
         .rpc({ commitment: "confirmed" });
 
-      // 3) Client choisit cette proposal → contrat Accepted
       await airdrop(provider.connection, client.publicKey, 2_000_000_000);
 
       await program.methods
@@ -678,7 +657,6 @@ describe("solance program", () => {
         .signers([client])
         .rpc({ commitment: "confirmed" });
 
-      // 4) Tentative d'update → ProposalCannotBeUpdated
       try {
         await program.methods
           .updateProposalIx(new anchor.BN(600_000_000))
@@ -700,7 +678,6 @@ describe("solance program", () => {
     it("Should fail if another contractor tries to update the proposal", async () => {
       await airdrop(provider.connection, contractor_attacker.publicKey);
 
-      // S'assurer que le contractor_attacker a bien un ContractorAccount
       try {
         await program.methods
           .initializeContractorIx()
@@ -712,7 +689,7 @@ describe("solance program", () => {
           .signers([contractor_attacker])
           .rpc({ commitment: "confirmed" });
       } catch (err: any) {
-        // Si déjà initialisé → ok
+
         if (!String(err).includes("already in use")) {
           throw err;
         }
@@ -749,9 +726,9 @@ describe("solance program", () => {
       }
     });
 
-    // NEW TEST: contract passed does not match proposal.contract
+
     it("Should fail to update Proposal if contract account doesn't match proposal.contract (InvalidProposalForContract)", async () => {
-      // Nouveau contract pour ce test
+
       const clientAccount = await program.account.client.fetch(client_pda);
       const nextId = clientAccount.nextContractId as anchor.BN;
 
@@ -776,15 +753,14 @@ describe("solance program", () => {
         .signers([client])
         .rpc({ commitment: "confirmed" });
 
-      // On essaie d'update first_proposal_pda (lié à first_contract_pda) avec wrong_contract_pda
       try {
         await program.methods
           .updateProposalIx(new anchor.BN(999_000_000))
           .accounts({
             contractor: contractor.publicKey,
             contractorAccount: contractor_pda,
-            proposalAccount: first_proposal_pda, // proposal.contract = first_contract_pda
-            contract: wrong_contract_pda,         // ❌ mismatch
+            proposalAccount: first_proposal_pda, 
+            contract: wrong_contract_pda,    
           })
           .signers([contractor])
           .rpc({ commitment: "confirmed" });
@@ -798,7 +774,7 @@ describe("solance program", () => {
 
   describe("choose proposal (with vault)", () => {
     it("Should let the client choose a proposal, fund the vault, and update the contract", async () => {
-      // S'assurer que le client a assez de SOL pour l'amount
+
       await airdrop(provider.connection, client.publicKey, 3_000_000_000);
 
       const beforeClientBalance = await provider.connection.getBalance(
@@ -837,14 +813,11 @@ describe("solance program", () => {
       );
       const expectedAmount = proposalAccount.amount.toNumber();
 
-      // La vault a été accrue d'au moins amount (rent + amount)
       const vaultDelta = afterVaultBalance - beforeVaultBalance;
       expect(vaultDelta).to.be.greaterThanOrEqual(expectedAmount);
 
-      // Le client a bien payé (amount + rent + fees)
       expect(afterClientBalance).to.be.lessThan(beforeClientBalance);
 
-      // Contract mis à jour
       expect(contractAccount.amount.toNumber()).to.equal(expectedAmount);
       expect("accepted" in contractAccount.status).to.be.true;
       expect(contractAccount.contractor.toBase58()).to.equal(
@@ -853,7 +826,7 @@ describe("solance program", () => {
     });
 
     it("Should fail if client doesn't have enough funds", async () => {
-      // On crée un nouveau contract + vault pour ce test
+
       const clientAccount = await program.account.client.fetch(client_pda);
       const nextId = clientAccount.nextContractId as anchor.BN;
 
@@ -873,7 +846,7 @@ describe("solance program", () => {
           program.programId
         );
 
-      // Init nouveau contract
+
       await program.methods
         .initializeContractIx(good_title_length, good_topic_length)
         .accounts({
@@ -885,7 +858,6 @@ describe("solance program", () => {
         .signers([client])
         .rpc({ commitment: "confirmed" });
 
-      // Init proposal pour ce contract
       const contractorAccount = await program.account.contractor.fetch(
         contractor_pda
       );
@@ -901,7 +873,7 @@ describe("solance program", () => {
           program.programId
         );
 
-      // Proposal avec montant très élevé
+
       const hugeAmount = new anchor.BN(10_000_000_000);
 
       await program.methods
@@ -916,7 +888,7 @@ describe("solance program", () => {
         .signers([contractor])
         .rpc({ commitment: "confirmed" });
 
-      // Airdrop limité
+
       await airdrop(provider.connection, client.publicKey, 1_000_000_000);
 
       try {
@@ -941,7 +913,7 @@ describe("solance program", () => {
     });
 
     it("Should fail if proposal does not belong to the given contract (InvalidProposalForContract)", async () => {
-      // Nouveau contrat "mismatch"
+
       const clientAccount = await program.account.client.fetch(client_pda);
       const nextId = clientAccount.nextContractId as anchor.BN;
 
@@ -972,8 +944,6 @@ describe("solance program", () => {
         .signers([client])
         .rpc({ commitment: "confirmed" });
 
-      // Ici, on utilise une proposal qui appartient à first_contract_pda (first_proposal_pda)
-      // mais on passe mismatch_contract_pda dans les accounts.
       await airdrop(provider.connection, client.publicKey, 2_000_000_000);
 
       try {
@@ -982,8 +952,8 @@ describe("solance program", () => {
           .accounts({
             signer: client.publicKey,
             clientAccount: client_pda,
-            contract: mismatch_contract_pda, // ❌ ne correspond pas à proposal.contract
-            proposalAccount: first_proposal_pda, // lie au first_contract_pda
+            contract: mismatch_contract_pda, 
+            proposalAccount: first_proposal_pda, 
             contractorAccount: contractor_pda,
             vault: mismatch_vault_pda,
             systemProgram: anchor.web3.SystemProgram.programId,
@@ -993,8 +963,7 @@ describe("solance program", () => {
 
         assert.fail("Expected InvalidProposalForContract error");
       } catch (err: any) {
-        // Selon l'ordre des checks dans ton IX, ça peut renvoyer InvalidProposalForContract
-        // ou une autre erreur de cohérence.
+
         if (err instanceof AnchorError) {
           const code = err.error.errorCode.code;
           expect(
@@ -1015,7 +984,6 @@ describe("solance program", () => {
     it("Should fail if contractorAccount does not match proposal contractor (InvalidContractorForProposal)", async () => {
       await airdrop(provider.connection, contractor_attacker.publicKey);
 
-      // S'assurer que contractor_attacker a un contractor_account
       try {
         await program.methods
           .initializeContractorIx()
@@ -1032,7 +1000,7 @@ describe("solance program", () => {
         }
       }
 
-      // Nouveau contract pour ce test
+
       const clientAccount = await program.account.client.fetch(client_pda);
       const nextId = clientAccount.nextContractId as anchor.BN;
 
@@ -1061,7 +1029,7 @@ describe("solance program", () => {
         .signers([client])
         .rpc({ commitment: "confirmed" });
 
-      // Proposal (contractor principal)
+
       const contractorAccount = await program.account.contractor.fetch(
         contractor_pda
       );
@@ -1100,7 +1068,7 @@ describe("solance program", () => {
             clientAccount: client_pda,
             contract: own_contract_pda,
             proposalAccount: own_proposal_pda,
-            contractorAccount: contractor_attacker_pda, // ❌ ne correspond pas à proposal.contractor
+            contractorAccount: contractor_attacker_pda, 
             vault: own_vault_pda,
             systemProgram: anchor.web3.SystemProgram.programId,
           })
@@ -1136,8 +1104,6 @@ describe("solance program", () => {
     it("Should fail if another contractor tries to mark work as done", async () => {
       await airdrop(provider.connection, contractor_attacker.publicKey);
 
-      // ⚠️ Ce PDA peut déjà avoir été initialisé dans d'autres tests,
-      // donc on ignore l'erreur "already in use".
       try {
         await program.methods
           .initializeContractorIx()
@@ -1168,13 +1134,12 @@ describe("solance program", () => {
 
         assert.fail("Expected UnauthorizedAccount error");
       } catch (err: any) {
-        // Ton IX renvoie bien UnauthorizedAccount ici
         expectAnchorError(err, "UnauthorizedAccount");
       }
     });
 
     it("Should fail if contract is not in Accepted status", async () => {
-      // Nouveau contract sans proposal acceptée → status = Opened
+
       const clientAccount = await program.account.client.fetch(client_pda);
       const nextId = clientAccount.nextContractId as anchor.BN;
 
@@ -1214,9 +1179,7 @@ describe("solance program", () => {
           "Expected ContractNotAccepted or UnauthorizedAccount error"
         );
       } catch (err: any) {
-        // Avec ta logique actuelle, la première condition qui casse est
-        // probablement "contract.contractor != contractor_account.key()"
-        // → UnauthorizedAccount. On accepte donc les deux codes.
+
         if (err instanceof AnchorError) {
           const code = err.error.errorCode.code;
           expect(
@@ -1234,9 +1197,7 @@ describe("solance program", () => {
       }
     });
 
-    // NEW TEST: second markWorkDone on same contract
     it("Should fail if markWorkDoneIx is called twice on the same contract", async () => {
-      // first_contract_pda a déjà été passé à Closed dans le happy path au-dessus
       try {
         await program.methods
           .markWorkDoneIx()
@@ -1308,13 +1269,10 @@ describe("solance program", () => {
       const contractorDelta = afterContractorBalance - beforeContractorBalance;
       const vaultDelta = beforeVaultBalance - afterVaultBalance;
 
-      // Le contractor reçoit exactement paidAmount
       expect(contractorDelta).to.equal(paidAmount);
 
-      // La vault a perdu exactement paidAmount
       expect(vaultDelta).to.equal(paidAmount);
 
-      // Le client a au moins payé les fees de la tx
       expect(afterClientBalance).to.be.lessThanOrEqual(beforeClientBalance);
     });
 
@@ -1336,14 +1294,11 @@ describe("solance program", () => {
 
         assert.fail("Expected second claimPaymentIx to fail (no double payment)");
       } catch (err: any) {
-        // Ton code vérifie d’abord que le contrat est Closed,
-        // or après paiement il est Paid → ContractNotClosed
         expectAnchorError(err, "ContractNotClosed");
       }
     });
 
     it("Should fail if contract is not closed yet (ContractNotClosed)", async () => {
-      // Nouveau contract + proposal + choose (Accepted) mais pas Closed
       const clientAccount = await program.account.client.fetch(client_pda);
       const nextId = clientAccount.nextContractId as anchor.BN;
 
@@ -1419,7 +1374,6 @@ describe("solance program", () => {
         .signers([client])
         .rpc({ commitment: "confirmed" });
 
-      // Ici, contract.status = Accepted, pas Closed → claimPaymentIx doit échouer
       try {
         await program.methods
           .claimPaymentIx()
@@ -1441,7 +1395,6 @@ describe("solance program", () => {
       }
     });
 
-    // NEW TEST: signer not owner of clientAccount for claimPaymentIx
     it("Should fail claimPaymentIx if signer is not owner of the clientAccount", async () => {
       await airdrop(provider.connection, client_attacker.publicKey, 2_000_000_000);
 
@@ -1449,7 +1402,7 @@ describe("solance program", () => {
         await program.methods
           .claimPaymentIx()
           .accounts({
-            client: client_attacker.publicKey, // ❌ pas owner de client_pda
+            client: client_attacker.publicKey,
             contractor: contractor.publicKey,
             clientAccount: client_pda,
             contractorAccount: contractor_pda,

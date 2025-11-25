@@ -24,16 +24,11 @@ export function useContractWithProposals(contractPk: PublicKey | null) {
       setLoading(true);
       setError(null);
       try {
-        // 1. Fetch du contrat
+
         const contractData = await (program.account as any).contract.fetch(
           contractPk
         );
         setContract(contractData);
-
-        // 2. Fetch de toutes les proposals pour ce contrat
-        // Proposal layout:
-        // 8 bytes discriminator + 32 (contract) + 32 (contractor) + 8 (proposal_id) + 8 (amount)
-        // => `contract` est le 1er champ, donc offset = 8
         const allProposals = await (program.account as any).proposal.all([
           {
             memcmp: {
@@ -43,7 +38,6 @@ export function useContractWithProposals(contractPk: PublicKey | null) {
           },
         ]);
 
-        // on map pour avoir un type propre
         const formatted: LoadedProposal[] = allProposals.map(
           (p: { publicKey: PublicKey; account: any }) => ({
             pubkey: p.publicKey,
@@ -51,7 +45,6 @@ export function useContractWithProposals(contractPk: PublicKey | null) {
           })
         );
 
-        // éventuellement trier par amount ou id
         formatted.sort((a, b) => {
           const idA = Number(a.account.proposalId ?? a.account.proposal_id ?? 0);
           const idB = Number(b.account.proposalId ?? b.account.proposal_id ?? 0);

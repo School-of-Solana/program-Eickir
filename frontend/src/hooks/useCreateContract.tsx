@@ -23,13 +23,11 @@ export function useCreateContract() {
       setError(null);
 
       try {
-        // 1. PDA client
         const [clientPda] = PublicKey.findProgramAddressSync(
           [Buffer.from(CLIENT_SEED), publicKey.toBuffer()],
           program.programId
         );
 
-        // 2. fetch client (cast pour calmer TS)
         const clientAccount: any = await (program.account as any).client.fetch(clientPda);
 
         const nextId = new BN(
@@ -38,7 +36,6 @@ export function useCreateContract() {
             0
         );
 
-        // 3. PDA contract
         const [contractPda] = PublicKey.findProgramAddressSync(
           [
             Buffer.from(CONTRACT_SEED),
@@ -48,7 +45,6 @@ export function useCreateContract() {
           program.programId
         );
 
-        // 4. IX
         await program.methods
           .initializeContractIx(title, topic)
           .accounts({

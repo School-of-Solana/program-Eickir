@@ -40,12 +40,11 @@ export function ContractForm() {
         `Contract created successfully: ${res.contractPda.toBase58()}`
       );
 
-      // Reset du formulaire
       setTitle("");
       setTopic("");
     } catch (e: any) {
       console.error("❌ Error in onSubmit createContract:", e);
-      // l’erreur “fonctionnelle” reste gérée dans le hook, ici on ajoute un message plus générique
+
       setLocalError(e?.message ?? "Failed to create contract");
     }
   };

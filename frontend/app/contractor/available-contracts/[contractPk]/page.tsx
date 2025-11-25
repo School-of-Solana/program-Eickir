@@ -8,7 +8,6 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { useSolanceProgram } from "@/lib/solana/program";
 import { useLoadContract } from "@/hooks/useLoadContract";
 import { useCreateProposal } from "@/hooks/useCreateProposal";
-// import { useUpdateProposal } from "@/hooks/useUpdateProposal"; // à brancher ensuite
 
 const CONTRACTOR_SEED = "contractor";
 
@@ -26,7 +25,7 @@ export default function ContractorAvailableContractPage() {
   const { publicKey, connected } = useWallet();
   const program = useSolanceProgram();
 
-  // 1. Récup de la PK du contrat à partir de l’URL
+
   const contractPkParam = params?.contractPk as string | undefined;
 
   const contractPubkey = useMemo(() => {
@@ -43,7 +42,7 @@ export default function ContractorAvailableContractPage() {
     error: contractError,
   } = useLoadContract(contractPubkey);
 
-  // 2. Gestion du ContractorAccount (PDA)
+
   const [contractorPda, setContractorPda] = useState<PublicKey | null>(null);
   const [hasContractorAccount, setHasContractorAccount] = useState<boolean | null>(null);
   const [contractorCheckError, setContractorCheckError] = useState<string | null>(null);
@@ -68,12 +67,12 @@ export default function ContractorAvailableContractPage() {
 
     (async () => {
       try {
-        // On tente de fetch le contractor account
+
         await (program.account as any).contractor.fetch(pda);
         setHasContractorAccount(true);
       } catch (e: any) {
         console.error("Error fetching contractor account:", e);
-        // Anchor / RPC renvoie souvent "Account does not exist"
+
         if (
           e.message?.includes("Account does not exist") ||
           e.message?.includes("could not find account")
@@ -89,7 +88,7 @@ export default function ContractorAvailableContractPage() {
     })();
   }, [program, publicKey]);
 
-  // 3. Hook pour createProposal
+
   const {
     createProposal,
     loading: creatingProposal,
@@ -97,26 +96,23 @@ export default function ContractorAvailableContractPage() {
     lastProposalPda,
   } = useCreateProposal();
 
-    // 4. Handlers UI
+
     const [amountInputSol, setAmountInputSol] = useState<string>("");
     const handleCreateProposal = async () => {
       if (!contractPubkey) return;
       if (!amountInputSol) return;
 
-      // On parse le montant en SOL (string -> number)
       const sol = parseFloat(amountInputSol);
       if (Number.isNaN(sol) || sol < 0) {
         alert("Please enter a valid non-negative amount in SOL.");
         return;
       }
 
-      // Conversion SOL -> lamports
       const lamports = BigInt(Math.round(sol * 1_000_000_000));
 
       await createProposal(contractPubkey, lamports);
     };
 
-  // 5. Différents cas d’affichage
 
   if (!contractPkParam || !contractPubkey) {
     return (

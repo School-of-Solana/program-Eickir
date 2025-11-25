@@ -40,14 +40,10 @@ export function useLoadContract(contractPk: PublicKey | null) {
         }
       }
     })();
-
-    // cleanup au cas où le composant se démonte pendant le fetch
     return () => {
       cancelled = true;
     };
   }, [
-    // on ne met pas directement `program` et `contractPk` (objets),
-    // mais leurs représentations stables :
     program?.programId.toBase58(),
     contractPk?.toBase58(),
   ]);

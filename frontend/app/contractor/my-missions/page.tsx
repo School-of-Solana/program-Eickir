@@ -52,7 +52,6 @@ export default function ContractorMyMissionsPage() {
     error: markError,
   } = useMarkWorkDone();
 
-  // Calcule le PDA contractor + charge les missions (contrats où je suis sélectionné)
   useEffect(() => {
     if (!program || !publicKey) return;
 
@@ -66,7 +65,6 @@ export default function ContractorMyMissionsPage() {
         );
         setContractorPda(pda);
 
-        // Vérifie que le contractor_account existe bien
         try {
           await (program.account as any).contractor.fetch(pda);
         } catch {
@@ -77,15 +75,12 @@ export default function ContractorMyMissionsPage() {
           return;
         }
 
-        // Récupérer tous les contrats et filtrer côté client
         const allContracts = await (program.account as any).contract.all();
         const myMissions = allContracts.filter((c: any) => {
           const contractorOnContract = extractPubkeyFromMaybeOption(
             c.account.contractor
           );
           const statusLabel = formatStatus(c.account.status);
-
-          // Missions “en cours” = je suis le contractor + contrat accepté mais pas encore fermé
           return (
             contractorOnContract === pda.toBase58() &&
             statusLabel === "Accepted"

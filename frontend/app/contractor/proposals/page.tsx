@@ -45,14 +45,12 @@ export default function ContractorProposalsPage() {
       setLoading(true);
       setError(null);
       try {
-        // PDA contractor
         const [pda] = PublicKey.findProgramAddressSync(
           [Buffer.from(CONTRACTOR_SEED), publicKey.toBuffer()],
           program.programId
         );
         setContractorPda(pda);
 
-        // Vérifie que le ContractorAccount existe
         try {
           await (program.account as any).contractor.fetch(pda);
         } catch {
@@ -63,10 +61,8 @@ export default function ContractorProposalsPage() {
           return;
         }
 
-        // Récupère toutes les proposals
         const allProps = await (program.account as any).proposal.all();
 
-        // On garde celles dont le champ `contractor` == contractorPda
         const mine = allProps.filter(
           (p: any) =>
             p.account.contractor?.toBase58?.() === pda.toBase58()
@@ -74,7 +70,6 @@ export default function ContractorProposalsPage() {
 
         setProposals(mine);
 
-        // Précharger les contrats associés pour afficher les titres
         const uniqueContractPks: string[] = Array.from(
           new Set<string>(
             mine.map(
@@ -87,7 +82,7 @@ export default function ContractorProposalsPage() {
         const contractsMap: Record<string, any> = {};
         await Promise.all(
           uniqueContractPks.map(async (pkStr: string) => {
-            const pk = new PublicKey(pkStr); // pkStr est bien un string
+            const pk = new PublicKey(pkStr);
             try {
               const c = await (program.account as any).contract.fetch(pk);
               contractsMap[pkStr] = c;
@@ -133,7 +128,6 @@ export default function ContractorProposalsPage() {
     try {
       await updateProposal(contractPk, proposalPk, lamports);
       setReloadCounter((n) => n + 1);
-      // On peut vider l’input pour ce proposal
       setAmountInputs((prev) => ({
         ...prev,
         [proposalPkStr]: "",

@@ -18,7 +18,6 @@ export default function ClientPage() {
   const [checking, setChecking] = useState(false);
   const [checkError, setCheckError] = useState<string | null>(null);
 
-  // Vérifie si le Client account existe pour ce wallet
   useEffect(() => {
     if (!program || !publicKey) {
       setClientPda(null);

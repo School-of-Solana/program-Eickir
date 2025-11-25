@@ -1,4 +1,3 @@
-// frontend/app/contracts/new/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";

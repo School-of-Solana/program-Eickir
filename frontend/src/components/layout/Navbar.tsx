@@ -20,7 +20,6 @@ export function NavBar() {
 
   const isActive = (href: string) => pathname === href;
 
-  // Auto-refresh de la balance
   useEffect(() => {
     if (!connected || !publicKey || !connection) {
       setBalanceSol(null);
