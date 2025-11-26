@@ -4,7 +4,7 @@
 ## Project Description
 
 - **Deployed Frontend URL:** `https://solance-six.vercel.app/`
-- **Solana Program ID:** `9os8f9dUNrZzg53kjGb1wj1stMabFFj4fuRnrF9pCjR6`
+- **Solana Program ID (Deployed on Devnet):** `9os8f9dUNrZzg53kjGb1wj1stMabFFj4fuRnrF9pCjR6`
 
 ---
 
